@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=desert-4';
-import { InstrumentAudio } from './audio.mjs?v=desert-4';
-import { VOICES } from './voices.mjs?v=desert-4';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord } from './loom.mjs?v=desert-4';
-import { LoomResonance } from './resonance.mjs?v=desert-4';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=dunes-5';
+import { InstrumentAudio } from './audio.mjs?v=dunes-5';
+import { VOICES } from './voices.mjs?v=dunes-5';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals } from './loom.mjs?v=dunes-5';
+import { LoomResonance } from './resonance.mjs?v=dunes-5';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -10,6 +10,7 @@ const config={root:0,scale:'hijaz',voice:'qanun',octave:0,mode:'pluck',palette:'
 const fingers=new Map(),pressedKeys=new Set(),pulses=[],visualQueue=[];
 const strings=Array.from({length:WARP_COUNT},(_,id)=>({id,energy:0,last:-10}));
 const rows=WEFTS.map(()=>({energy:0}));
+let lastVertical=0;
 const memory=[],brushAt=WEFTS.map(()=>-10);
 const clock={timer:null,step:0,next:0};
 const flow={enabled:false,startStep:0,cycle:-1,phrase:[]};
@@ -34,12 +35,6 @@ function resize(){
 }
 new ResizeObserver(resize).observe($('stage'));resize();
 function tuningReadout(){ $('keyReadout').textContent=`${NOTES[config.root]} · ${SCALES[config.scale].name.toUpperCase()}`; }
-function applyPalette(){
-  const p=PALETTES[config.palette];
-  for(const key of ['bg','panel','ink','dim','line'])document.documentElement.style.setProperty('--'+key,p[key]);
-  document.documentElement.style.setProperty('--cyan',p.accent);
-  document.documentElement.style.setProperty('--pink',p.accent);
-}
 function hint(message){$('hint').textContent=message;}
 function startAudio(){
   const currentGeneration=generation;
@@ -48,11 +43,15 @@ function startAudio(){
     if(clock.timer===null){clock.next=audio.time+.035;clock.step=0;clock.timer=setInterval(schedule,25);schedule();}
   }).catch(()=>hint('Audio unavailable. Touch a string to retry.'));
 }
-function colorFor(id,light=70,alpha=1){
-  const p=PALETTES[config.palette],hue=p.hue+id*p.spread;
-  return `hsla(${hue},65%,${light}%,${alpha})`;
+function colorFor(id,light=70,alpha=1){return paletteColor(config.palette,id/(WARP_COUNT-1),light,alpha);}
+function rowColor(row,alpha=1){return paletteColor(config.palette,row/(WEFTS.length-1),72,alpha);}
+function stringGradient(axis,index,alpha){
+  const g=geometry,vertical=axis==='v';
+  const gradient=ctx.createLinearGradient(vertical?0:g.weftLeft,vertical?g.top:0,vertical?0:g.right,vertical?g.bottom:0);
+  const bank=index/(vertical?WARP_COUNT-1:WEFTS.length-1);
+  for(let i=0;i<=4;i++)gradient.addColorStop(i/4,paletteColor(config.palette,bank*.4+i/4*.6,70,alpha));
+  return gradient;
 }
-function rowColor(row,alpha=1){return colorFor(row+(row%2?3:0),72,alpha);}
 function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x=null){
   strings[id].energy=Math.max(strings[id].energy,strength);
   if(row!==null) rows[row].energy=Math.max(rows[row].energy,strength);
@@ -90,14 +89,27 @@ function emit(id,velocity=.65,brightness=.6,when=audio.time,source='live',interv
   const visual={time:when,id,strength:velocity,fromLoop:source==='loop',row:null,y};
   if(when>audio.time+.015)visualQueue.push(visual);else visualize(id,velocity,source==='loop',null,y);
 }
-function pluck(id,velocity,brightness,y,when=audio.time){
+function pluck(id,velocity,brightness,y,when=audio.time,layer=warpLayer(y,geometry)){
   if(id===null)return;
+  lastVertical=id;
   const now=performance.now()/1000;if(now-strings[id].last<.035)return;
   strings[id].last=now;
   const notes=config.mode==='chord'?wovenChord(id):[id];
-  notes.forEach((note,i)=>emit(note,velocity/Math.sqrt(notes.length),brightness,when+i*.009,'live',0,y));
+  notes.forEach((note,i)=>verticalNote(note,velocity/Math.sqrt(notes.length),brightness,when+i*.009,'live',y,layer));
   const old=memory.findIndex(n=>n.id===id);if(old>=0)memory.splice(old,1);
   memory.push({id,time:audio.time});if(memory.length>5)memory.shift();
+}
+function verticalNote(id,velocity,brightness,when,source,y,layer=warpLayer(y,geometry)){
+  const intervals=warpIntervals(layer);
+  const levels=[1,.42,.32],normal=Math.sqrt(intervals.reduce((sum,_,i)=>sum+levels[i]**2,0));
+  intervals.forEach((interval,i)=>emit(id,velocity*levels[i]/normal,brightness,when,source,interval,y));
+}
+function anchorFor(f){return isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
+function threadNote(id,row,index,velocity,when,source='arp'){
+  const notes=resonanceNotes(id,row,config),note=notes[index%notes.length];
+  audio.play(note,{voice:config.voice,velocity,brightness:.55,when,pan:(id/13-.5)*.9});
+  if(source==='arp')record({type:'threadNote',id,row,index,velocity},when);
+  visualQueue.push({time:when,id,row,strength:velocity+.15,y:weftY(row,geometry),fromLoop:source==='loop'});
 }
 function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   if(row===null||!audio.context||audio.time-brushAt[row]<.12)return;
@@ -107,7 +119,7 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
   const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
   if(!seeds.length)seeds.push(0,4);
-  const chosen=seeds.slice(0,['dust','mirage','echo','root','pedal'].includes(WEFTS[row].kind)?1:2);
+  const chosen=isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
     const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
     resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,source:'brush',pan:(id/13-.5)*.9});
@@ -117,11 +129,12 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   });
 }
 function couple(finger,when=audio.time){
-  if(finger.id===null||finger.row===null||finger.handle)return;
+  if(finger.row===null||finger.handle)return;
+  const id=anchorFor(finger);
   finger.coupled=true;finger.joined=when;
-  finger.handle=resonance.start(resonanceNotes(finger.id,finger.row,config),finger.row,{id:finger.id,level:finger.velocity,pan:(finger.id/13-.5)*.9});
-  finger.record=record({type:'weave',id:finger.id,row:finger.row,velocity:finger.velocity,duration:1},when);
-  visualize(finger.id,.75,false,finger.row);
+  finger.handle=resonance.start(resonanceNotes(id,finger.row,config),finger.row,{id,level:finger.velocity,pan:(id/13-.5)*.9});
+  finger.record=record({type:'weave',id,row:finger.row,velocity:finger.velocity,duration:1},when);
+  visualize(id,.75,false,finger.row);
 }
 function uncouple(finger){
   if(finger.record){
@@ -138,11 +151,12 @@ function releaseAll(){
 }
 function updateFingers(){
   for(const f of fingers.values()){
-    if(f.id===null)continue;
+    if(f.id===null&&f.row===null)continue;
+    if(f.handle&&f.handle.id!==anchorFor(f)){uncouple(f);couple(f);}
     if(!f.coupled&&audio.time-f.started>=HOLD_SECONDS)couple(f);
     if(f.handle){
       const peers=[...fingers.values()].filter(other=>other.handle&&other.row===f.row).length;
-      const pull=Number.isFinite(f.x)?Math.abs(f.x-warpX(f.id,geometry))/geometry.dx:0;
+      const pull=f.id!==null&&Number.isFinite(f.x)?Math.abs(f.x-warpX(f.id,geometry))/geometry.dx:0;
       if(audio.time-f.joined>.85)resonance.pressure(f.handle,1+pull*.3+Math.min(2,peers-1)*.12);
     }
   }
@@ -160,9 +174,10 @@ function schedule(){
     const step=clock.step,when=clock.next+(step%2?duration*config.swing:0);
     const click=recordingClick(step,loop,config.metronome);if(click)audio.click(when,click.accent);
     if(config.mode==='arp'&&step%2===0){
-      for(const f of fingers.values())if(f.id!==null){
-        const notes=wovenChord(f.id),index=[0,1,2,1][Math.floor(step/2)%4];
-        emit(notes[index],f.velocity*.65,f.brightness??.6,when,'arp',0,f.y??weftY(f.row??0,geometry));
+      for(const f of fingers.values())if(f.id!==null||f.row!==null){
+        const index=[0,1,2,1][Math.floor(step/2)%4];
+        if(f.row!==null)threadNote(anchorFor(f),f.row,index,f.velocity*.55,when);
+        else verticalNote(wovenChord(f.id)[index],f.velocity*.65,f.brightness??.6,when,'arp',f.y??geometry.top,f.layer??0);
       }
     }
     if(flow.enabled&&step>=flow.startStep){
@@ -173,7 +188,8 @@ function schedule(){
     if(loop.state==='playing'||(loop.state==='recording'&&step>=loop.startStep+LOOP_STEPS)){
       const slot=((step-loop.startStep)%LOOP_STEPS+LOOP_STEPS)%LOOP_STEPS;
       for(const e of loop.events)if(e.step===slot){
-        if(e.type==='weave'){
+        if(e.type==='threadNote')threadNote(e.id,e.row,e.index,e.velocity*.8,when,'loop');
+        else if(e.type==='weave'){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
@@ -193,7 +209,7 @@ canvas.addEventListener('pointerdown',e=>{
   const p=eventPoint(e),hit=intersection(p,geometry);if(fingers.size>=10)return;
   canvas.classList.add('pointer-playing');
   if(hit)startAudio();canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});
-  const f={...p,id:null,row:null,...hit,velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
+  const f={...p,id:null,row:null,...hit,layer:warpLayer(p.y,geometry),velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
   fingers.set(e.pointerId,f);
   if(f.id!==null)pluck(f.id,f.velocity,f.brightness,p.y);
   else if(f.row!==null)brushWeft(f.row,f.velocity,null,0,p.x);
@@ -206,6 +222,10 @@ canvas.addEventListener('pointermove',e=>{
     const speed=Math.hypot(p.x-f.x,p.y-f.y)/Math.max(8,p.time-f.time),velocity=clamp(.42+speed*.25,.42,.95);
     const warps=crossedWarps(f,p,geometry),wefts=crossedWefts(f,p,geometry);
     if((hit||warps.length||wefts.length)&&!audio.context)startAudio();
+    const layer=warpLayer(p.y,geometry,f.layer??0);
+    if(hit?.id!=null&&hit.id===f.id&&layer!==f.layer){
+      pluck(hit.id,velocity,brightnessAt(p),p.y,audio.time,layer);
+    }
     // A broad sweep catches every crossed filament, including a fast move that
     // ends back in the quiet space. Spread bundled events into a tiny cascade.
     if(!f.coupled){
@@ -223,7 +243,7 @@ canvas.addEventListener('pointermove',e=>{
       wefts.forEach((crossing,i)=>{if(crossing.row!==hit.row)brushWeft(crossing.row,velocity*.65,crossing.id,i*.022,crossing.x);});
     }
     if(f.id===null&&f.row===null)f.started=audio.time;
-    Object.assign(f,p,hit,{velocity,brightness:brightnessAt(p)});
+    Object.assign(f,p,hit,{velocity,layer,brightness:brightnessAt(p)});
     if(changed&&f.coupled)couple(f);
   }
 });
@@ -265,7 +285,7 @@ $('flow').addEventListener('click', toggleFlow);
 for(const element of document.querySelectorAll('[data-mode]'))element.addEventListener('click',()=>{
   releaseAll();config.mode=element.dataset.mode;
   for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===config.mode));
-  hint({pluck:'PLUCK · ONE STRING, ONE NOTE',chord:'CHORD · THREE STRINGS TOGETHER',arp:'ARP · HOLD TO LET THE NOTES CIRCLE'}[config.mode]);
+  hint({pluck:'PLUCK · SLIDE DOWN FOR FIFTH + OCTAVE',chord:'CHORD · THREE STRINGS TOGETHER',arp:'ARP · HOLD EITHER THREAD TO CIRCLE'}[config.mode]);
 });
 $('loop').addEventListener('click', toggleLoop);
 $('clearLoop').addEventListener('click', () => { for (const f of fingers.values()) f.record=null; loop.events = []; setLoopState('empty'); $('loopProgress').style.width = '0%'; });
@@ -285,7 +305,7 @@ $('randomize').addEventListener('click', () => {
   releaseAll(); Object.assign(config, randomPatch(config));
   if (flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
   for (const id of ['root', 'scale', 'voice', 'palette']) $(id).value = String(config[id]);
-  tuningReadout();applyPalette();
+  tuningReadout();
   hint(`${NOTES[config.root]}, ${SCALES[config.scale].name}, ${config.voice}`);
 });
 for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id).addEventListener('change', event => {
@@ -293,7 +313,6 @@ for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id)
   config[id] = ['root', 'octave', 'swing'].includes(id) ? Number(event.target.value) : event.target.value;
   if (['root', 'scale', 'octave'].includes(id)) tuningReadout();
   if (id === 'scale' && flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
-  if (id === 'palette') applyPalette();
 });
 for (const id of ['volume', 'echo', 'hall', 'decay', 'glow']) $(id).addEventListener('input', event => {
   const value = Number(event.target.value); $(id + 'Value').value = value;
@@ -359,11 +378,11 @@ function draw(ms){
   }
   for(const s of strings){
     const x=warpX(s.id,g),e=s.energy;
-    ctx.strokeStyle=colorFor(s.id,70,.35+e*.6);ctx.lineWidth=.8+e*.7;
+    ctx.strokeStyle=stringGradient('v',s.id,.4+e*.55);ctx.lineWidth=.8+e*.7;
     ctx.shadowColor=colorFor(s.id);ctx.shadowBlur=e*glow*8;
     ctx.beginPath();ctx.moveTo(x,g.top);
     for(let y=g.top;y<=g.bottom;y+=4){const envelope=Math.sin(Math.PI*(y-g.top)/(g.bottom-g.top));ctx.lineTo(x+displacement('v',s.id,y)*envelope,y);}ctx.lineTo(x,g.bottom);ctx.stroke();ctx.shadowBlur=0;
-    for(const y of [g.top-7,g.bottom+7]){ctx.fillStyle=colorFor(s.id,75,.6);ctx.beginPath();ctx.arc(x,y,1.6,0,Math.PI*2);ctx.fill();}
+    for(const y of [g.top-7,g.bottom+7]){ctx.fillStyle=paletteColor(config.palette,s.id/13*.4+(y>g.bottom?.6:0),75,.6);ctx.beginPath();ctx.arc(x,y,1.6,0,Math.PI*2);ctx.fill();}
     if(config.showNotes){ctx.font=`${g.width<500?9:11}px ui-monospace,monospace`;ctx.textAlign='center';ctx.fillStyle=e>.12?colorFor(s.id,84):'#96a3b5';
       ctx.fillText(noteName(midi(s.id)).replace('↓50','↓'),x,g.bottom+24+(g.dx<24&&s.id%2?12:0));}
   }
@@ -372,7 +391,7 @@ function draw(ms){
     // Draw the weft as a double filament; the slight over/under deflection makes
     // the crossing legible without boxes, filled cells or button hit regions.
     for(let ply=0;ply<2;ply++){
-      ctx.strokeStyle=rowColor(row,(ply?.16:.35)+e*(ply?.22:.55));ctx.lineWidth=ply?.55:.8+e*.65;
+      ctx.strokeStyle=stringGradient('h',row,(ply?.16:.4)+e*(ply?.22:.5));ctx.lineWidth=ply?.55:.8+e*.65;
       ctx.shadowColor=rowColor(row);ctx.shadowBlur=e*glow*7;
       ctx.beginPath();ctx.moveTo(start,y+ply*2);
       for(let x=start;x<=end;x+=3){const envelope=Math.sin(Math.PI*(x-start)/(end-start));const weave=Math.sin((x-g.left)/g.dx*Math.PI)*.6;
@@ -407,4 +426,4 @@ function draw(ms){
   if(frameTime-lastNoteTime>3)$('noteReadout').textContent='';
   requestAnimationFrame(draw);
 }
-tuningReadout();applyPalette();requestAnimationFrame(draw);
+tuningReadout();requestAnimationFrame(draw);

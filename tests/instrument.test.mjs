@@ -80,7 +80,8 @@ function harness() {
 test('initial draw, two independent fingers, swipes, release, cancellation and keyboard', async () => {
   const h = harness(); h.draw(0); assert.equal(h.audio.context, null);
   h.pointer('pointerdown', 1, 3); h.pointer('pointerdown', 2, 11); await h.flush();
-  assert.equal(h.fingers.size, 2); assert.equal(h.audio.calls.length, 2);
+  assert.equal(h.fingers.size, 2); assert.equal(h.audio.calls.length, 4);
+  assert.equal(h.audio.calls[1].midi-h.audio.calls[0].midi,7);
   h.advance(.1); h.pointer('pointermove', 1, 7); assert.ok(h.audio.calls.length >= 6);
   h.pointer('pointerup', 1, 7); assert.equal(h.fingers.size, 1);
   h.pointer('pointercancel', 2, 11); assert.equal(h.fingers.size, 0);
@@ -94,7 +95,7 @@ test('two-bar loop records, repeats, transposes, pauses, resumes and clears', as
   const h = harness(); h.elements.get('loop').dispatch('click'); await h.flush();
   assert.equal(h.loop.state, 'armed'); h.pointer('pointerdown', 1, 2); h.pointer('pointerup', 1, 2);
   assert.equal(h.loop.state, 'recording'); h.advance(.5); h.pointer('pointerdown', 2, 10); h.pointer('pointerup', 2, 10);
-  assert.equal(h.loop.events.length, 2);
+  assert.equal(h.loop.events.length, 4);
   const bpm = h.config.bpm; h.changeTempo(180); assert.equal(h.config.bpm, bpm);
   h.advance(5.3); assert.equal(h.loop.state, 'playing'); assert.ok(h.audio.calls.length > 2);
   h.elements.get('root').value = '2'; h.elements.get('root').dispatch('change');
@@ -136,6 +137,38 @@ test('Hijaz is the actual initial tuning and UI selection', () => {
   assert.equal(h.config.voice,'qanun');
 });
 
+test('lower-only harmonies remember the last vertical note and retune while held',async()=>{
+  const h=harness();h.pointer('pointerdown',1,7,null);await h.flush();h.pointer('pointerup',1,7,null);
+  h.advance(9);h.pointer('pointerdown',2,null,5);h.advance(.5);
+  const f=h.fingers.get(2);assert.equal(f.handle.id,7);
+  assert.deepEqual(f.handle.notes,loom.resonanceNotes(7,5,h.config));
+  const old=f.handle;h.pointer('pointerdown',3,10,null);h.advance(.05);
+  assert.equal(old.stopping,true);assert.equal(f.handle.id,10);
+  h.pointer('pointerup',3,10,null);h.pointer('pointerup',2,null,5);h.advance(1);
+  assert.equal(h.resonance.active.size,0);h.pause();
+});
+test('horizontal-only arpeggios use the row pitches, record their identity and replay',async()=>{
+  const h=harness();h.pointer('pointerdown',1,4,null);await h.flush();h.pointer('pointerup',1,4,null);
+  h.modes[2].dispatch('click');h.elements.get('loop').dispatch('click');h.pointer('pointerdown',2,null,3);
+  h.advance(1.4);h.pointer('pointerup',2,null,3);
+  const events=h.loop.events.filter(e=>e.type==='threadNote');assert.ok(events.length>=4);
+  assert.ok(events.every(e=>e.id===4&&e.row===3));
+  const pitches=loom.resonanceNotes(4,3,h.config);
+  assert.ok(pitches.every(p=>h.audio.calls.some(n=>n.midi===p)));
+  h.advance(5);assert.equal(h.loop.state,'playing');
+  assert.ok(h.visualQueue.some(e=>e.row===3&&e.fromLoop)||h.audio.calls.filter(n=>pitches.includes(n.midi)).length>events.length);
+  h.elements.get('clearLoop').dispatch('click');const count=h.audio.calls.length;h.advance(1);
+  assert.equal(h.audio.calls.length,count);h.pause();
+});
+test('sliding down one string adds a fifth then an octave and records both intervals',async()=>{
+  const h=harness(),g=h.geometry,canvas=h.elements.get('canvas');h.elements.get('loop').dispatch('click');await h.flush();
+  const point=depth=>({pointerId:9,clientX:loom.warpX(2,g),clientY:g.top+depth*(g.bottom-g.top),timeStamp:performance.now(),pointerType:'touch'});
+  canvas.dispatch('pointerdown',point(.1));assert.deepEqual(h.audio.calls.map(n=>n.midi),[52]);
+  h.advance(.1);canvas.dispatch('pointermove',point(.6));assert.deepEqual(h.audio.calls.slice(-2).map(n=>n.midi),[52,59]);
+  h.advance(.1);canvas.dispatch('pointermove',point(.9));assert.deepEqual(h.audio.calls.slice(-3).map(n=>n.midi),[52,59,64]);
+  assert.ok(h.loop.events.some(e=>e.interval===12));canvas.dispatch('pointerup',point(.9));h.pause();
+});
+
 test('chord mode records three scale strings including quarter tones and replays once',async()=>{
   const h=harness();h.modes[1].dispatch('click');
   h.elements.get('scale').value='rast';h.elements.get('scale').dispatch('change');
@@ -148,7 +181,7 @@ test('held arpeggios follow the clock, record, weave and stop on release',async(
   const h=harness();h.modes[2].dispatch('click');h.elements.get('loop').dispatch('click');
   h.pointer('pointerdown',1,2,10);await h.flush();h.advance(1.4);
   assert.ok(new Set(h.audio.calls.map(n=>n.midi)).size>=3);
-  assert.ok(h.loop.events.filter(e=>e.type==='pluck').length>=4);
+  assert.ok(h.loop.events.filter(e=>e.type==='threadNote').length>=4);
   assert.equal(h.fingers.get(1).handle.row,10);
   h.pointer('pointerup',1,2,10);h.advance(.15);const count=h.audio.calls.length;h.advance(.8);
   assert.equal(h.audio.calls.length,count);h.modes[0].dispatch('click');assert.equal(h.config.mode,'pluck');h.pause();
@@ -189,7 +222,7 @@ test('FLOW plays without fingers, follows key changes, avoids recording itself a
   assert.equal(h.flow.enabled, true); assert.ok(h.audio.calls.length > 1); assert.equal(h.fingers.size, 0);
   assert.ok(h.audio.calls.every(call => call.voice === 'velvet'));
   h.elements.get('loop').dispatch('click'); h.advance(1); assert.equal(h.loop.state, 'armed'); assert.equal(h.loop.events.length, 0);
-  h.pointer('pointerdown', 1, 11); h.pointer('pointerup', 1, 11); h.advance(1); assert.equal(h.loop.events.length, 1);
+  h.pointer('pointerdown', 1, 11); h.pointer('pointerup', 1, 11); h.advance(1); assert.equal(h.loop.events.length, 2);
   h.elements.get('root').value = '2'; h.elements.get('root').dispatch('change');
   h.elements.get('scale').value = 'ritusen'; h.elements.get('scale').dispatch('change');
   const count = h.audio.calls.length; h.advance(2);
@@ -274,7 +307,7 @@ test('keyboard holds couple to the chosen weft and all twelve timbres release', 
 });
 
 test('rapid reweaving bounds resonance groups without stealing a resting live finger', async () => {
-  const h=harness();h.pointer('pointerdown',1,1,5);h.pointer('pointerdown',2,2,1);await h.flush();h.advance(.5);
+  const h=harness();h.pointer('pointerdown',1,1,4);h.pointer('pointerdown',2,2,1);await h.flush();h.advance(.5);
   const anchor=h.fingers.get(1).handle;
   for(let i=0;i<80;i++){
     h.audio.context.advance(.005);h.pointer('pointermove',2,2+i%10,i%6);h.schedule();

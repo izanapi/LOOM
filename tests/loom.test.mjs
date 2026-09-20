@@ -1,7 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCALES, noteName, frequency, LOOM_SCALES } from '../music.mjs';
-import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes } from '../loom.mjs';
+import { SCALES, noteName, frequency, LOOM_SCALES, PALETTES, paletteColor } from '../music.mjs';
+import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals } from '../loom.mjs';
+test('every string palette has a continuous multi-stop gradient',()=>{
+ for(const name of Object.keys(PALETTES)){
+  assert.equal(PALETTES[name].hues.length,4);
+  assert.notEqual(paletteColor(name,0),paletteColor(name,1));
+ }
+});
+test('vertical depth layers retain a stable fifth and octave around their boundaries',()=>{
+ const g=loomGeometry(390,500),y=d=>g.top+d*(g.bottom-g.top);
+ assert.deepEqual(warpIntervals(warpLayer(y(.1),g)),[0]);
+ assert.deepEqual(warpIntervals(warpLayer(y(.6),g)),[0,7]);
+ assert.deepEqual(warpIntervals(warpLayer(y(.9),g)),[0,7,12]);
+ assert.equal(warpLayer(y(.46),g,1),1);assert.equal(warpLayer(y(.76),g,2),2);
+});
 test('quarter tones keep their pitch and readable labels',()=>{
  assert.equal(noteName(51.5),'E3↓50');assert.equal(noteName(60),'C4');
  assert.ok(Math.abs(frequency(60.5)/frequency(60)-2**(1/24))<1e-12);

@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs?v=desert-4';
+import { SCALES, clamp } from './music.mjs?v=dunes-5';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
@@ -12,9 +12,9 @@ export const WEFTS = [
   { name: 'SHIMMER', kind:'shimmer', detail: 'trembling high light' },
   { name: 'OCTAVE', kind:'octave', detail: 'double course' },
   { name: 'ECHO', kind:'echo', detail: 'returning neighbors' },
-  { name: 'ROOT', kind:'root', detail: 'low tonic drone' },
+  { name: 'ROOT', kind:'root', detail: 'last-note drone' },
   { name: 'MIRAGE', kind:'mirage', detail: 'reversed string grains' },
-  { name: 'PEDAL', kind:'pedal', detail: 'tonic and fifth below' },
+  { name: 'PEDAL', kind:'pedal', detail: 'last note and fifth below' },
 ];
 export function loomGeometry(width, height) {
   const left = width * .47, right = width - (width < 500 ? 22 : 52);
@@ -64,14 +64,23 @@ export function degreeMidi(degree, config) {
   return 48+Number(config.root)+config.octave*12+Math.floor(degree/n)*12+steps[((degree%n)+n)%n];
 }
 export function resonanceNotes(id, row, config) {
-  const base=degreeMidi(id,config), tonic=degreeMidi(0,config);
+  const base=degreeMidi(id,config);
   return {
     bloom:[base,degreeMidi(id+2,config),degreeMidi(id+4,config)],
     harm:[base+12,base+19,base+24], dust:[base,base+12], fifth:[base,base+7],
     silk:[base,degreeMidi(id+4,config)], third:[base,degreeMidi(id+2,config)],
     shimmer:[base+12,base+24], octave:[base,base+12],
-    echo:[base,degreeMidi(id+1,config),base+12], root:[tonic-12,base-12],
-    mirage:[base,degreeMidi(id-1,config)+12], pedal:[tonic-12,tonic-5],
+    echo:[base,degreeMidi(id+1,config),base+12], root:[base-12,base],
+    mirage:[base,degreeMidi(id-1,config)+12], pedal:[base-12,base-5],
   }[WEFTS[row].kind];
 }
 export const wovenChord = id => [0,2,4].map(offset=>(id+offset)%WARP_COUNT);
+export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','pedal'].includes(WEFTS[row].kind);
+// Depth is measured along a string, never against the moving wave itself.
+export function warpLayer(y,g,previous=0){
+  const depth=(y-g.top)/(g.bottom-g.top),h=.018;
+  if(depth>=(previous===2?.76-h:.76+h))return 2;
+  if(depth>=(previous>=1?.46-h:.46+h))return 1;
+  return 0;
+}
+export const warpIntervals = layer => layer===2?[0,7,12]:layer===1?[0,7]:[0];

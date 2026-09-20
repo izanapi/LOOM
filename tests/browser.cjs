@@ -9,8 +9,8 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.__audioContext=this;}};
  });
  await page.goto(process.argv[2]||'http://127.0.0.1:8071');await page.waitForTimeout(300);
- assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=desert-4')));
- const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=desert-4');return m.loomGeometry(390,500)});
+ assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=dunes-5')));
+ const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=dunes-5');return m.loomGeometry(390,500)});
  assert.ok(geometry.left>180&&geometry.weftTop>250,'Strings form a mirrored L');
  fs.mkdirSync('artifacts',{recursive:true});
  await page.screenshot({path:'artifacts/loom-mobile.png'});
@@ -64,14 +64,24 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  await page.locator('#scale').selectOption('rast');
  await page.mouse.move(a.x,a.y);await page.mouse.down();await page.waitForTimeout(1100);
  await page.screenshot({path:'artifacts/loom-arpeggio.png'});await page.mouse.up();
+ // ARP must also work on the left ends, and follow a second finger's melody.
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:lowerX,y:point(0,3).y,id:15}]});
+ await page.waitForTimeout(600);assert.match(await page.locator('#touchState').textContent(),/1 CROSSING.*FIFTH/);
+ const anchor={x:point(9,0).x,y:box.y+top+20,id:16};
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:lowerX,y:point(0,3).y,id:15},anchor]});
+ await page.waitForTimeout(650);assert.match(await page.locator('#noteReadout').textContent(),/^E4↓50/);
+ await page.screenshot({path:'artifacts/loom-horizontal-arp.png'});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  await page.locator('[data-mode="pluck"]').click();
  await page.locator('#settingsOpen').click();
- const backgrounds=new Set();
+ const backgrounds=new Set(),panelColors=new Set();
  for(const palette of ['desert','rose','copper','oasis','indigo','ember','aurora','neon']){
    await page.locator('#palette').selectOption(palette);
    backgrounds.add(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor));
+   panelColors.add(await page.locator('#voice').evaluate(e=>getComputedStyle(e).backgroundColor));
  }
- assert.equal(backgrounds.size,8);
+ assert.equal(backgrounds.size,1);
+ assert.equal(panelColors.size,1);assert.ok(backgrounds.has('rgb(9, 11, 24)'));
  await page.locator('#palette').selectOption('desert');await page.locator('#settingsClose').click();
  for(const [width,height] of [[320,568],[390,664],[430,932],[844,390],[1280,900]]){
   await page.setViewportSize({width,height});await page.waitForTimeout(100);

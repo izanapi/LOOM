@@ -1,5 +1,5 @@
-import { frequency, clamp } from './music.mjs?v=desert-4';
-import { VOICES, pluckedWave } from './voices.mjs?v=desert-4';
+import { frequency, clamp } from './music.mjs?v=dunes-5';
+import { VOICES, pluckedWave } from './voices.mjs?v=dunes-5';
 
 // A diffuse, decorrelated stereo tail with early reflections and a 5.2 s RT60.
 export function hallImpulse(ac) {

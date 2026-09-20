@@ -15,7 +15,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
    if(row<12)r.start(resonanceNotes(4,row,config),row,{id:4,when:.1,duration:2,level:.7});
    else if(row===12)for(let i=0;i<10;i++)r.start(resonanceNotes(i,i%12,config),i%12,{id:i,when:.1,duration:2,level:.7});
    else if(row===13)for(let i=0;i<14;i++){
-     a.play(48+i,{voice:'qanun',velocity:.55,when:.1+i*.008});
+     for(const interval of [0,7,12])a.play(48+i+interval,{voice:'qanun',velocity:interval?.23:.5,when:.1+i*.008});
      r.start(resonanceNotes(i,i%12,config),i%12,{id:i,when:.1+i*.008,duration:.8,level:.4,attack:.055,source:'brush'});
    }
    else a.play(60.5,{voice:['qanun','santur','oud'][row-14],velocity:.8,when:.1});

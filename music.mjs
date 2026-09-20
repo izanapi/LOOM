@@ -1,4 +1,4 @@
-import { VOICES } from './voices.mjs?v=desert-4';
+import { VOICES } from './voices.mjs?v=dunes-5';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {
@@ -42,15 +42,21 @@ export const noteName = midi => {
 // Older HANABI tunings remain readable, but LOOM's picker and dice favor its own catalog.
 export const LOOM_SCALES = Object.keys(SCALES).filter(k=>!['hirajoshi','ritusen','insen','kumoi','kumoijoshi','ryukyu'].includes(k));
 export const PALETTES = {
-  desert: {name:'Desert',hue:28,spread:2.1,bg:'#130e0b',panel:'#221912',ink:'#f3dfc4',dim:'#b19a80',line:'#473327',accent:'#edb56e'},
-  rose: {name:'Rose dune',hue:345,spread:2.5,bg:'#170e13',panel:'#291b24',ink:'#f5dce5',dim:'#b597a5',line:'#4c303f',accent:'#eea0b4'},
-  copper: {name:'Copper',hue:12,spread:2,bg:'#150d0b',panel:'#2b1a14',ink:'#f6dac3',dim:'#b39280',line:'#503527',accent:'#f49a68'},
-  oasis: {name:'Oasis',hue:155,spread:3,bg:'#0c1413',panel:'#172722',ink:'#def0db',dim:'#91afa1',line:'#2d463c',accent:'#a9d6a0'},
-  indigo: {name:'Indigo night',hue:230,spread:3.5,bg:'#0e101c',panel:'#1a1d32',ink:'#e3dff6',dim:'#9b98bb',line:'#363653',accent:'#b2a5f3'},
-  ember: {name:'Ember',hue:24,spread:3,bg:'#160e0c',panel:'#291b17',ink:'#f4ded0',dim:'#b29a8b',line:'#4a3026',accent:'#ffaa71'},
-  aurora: {name:'Aurora',hue:155,spread:4.4,bg:'#090b18',panel:'#171b2d',ink:'#e9edf9',dim:'#8b95b0',line:'#272d45',accent:'#76ffed'},
-  neon: {name:'Neon',hue:175,spread:11,bg:'#0b0b18',panel:'#19182d',ink:'#ece7ff',dim:'#a09abb',line:'#36324d',accent:'#ab8cff'},
+  desert: {name:'Rub al Khali',hues:[322,352,386,412]},
+  rose: {name:'Wadi Rum',hues:[283,327,365,394]},
+  copper: {name:'Negev',hues:[348,372,397,421]},
+  oasis: {name:'Siwa',hues:[38,91,153,185]},
+  indigo: {name:'Zagros',hues:[213,263,309,350]},
+  ember: {name:'Sinai',hues:[307,351,375,399]},
+  aurora: {name:'Lut',hues:[169,208,274,323]},
+  neon: {name:'Neon',hues:[175,223,270,318]},
 };
+export function paletteColor(palette,position,light=70,alpha=1){
+  const hues=PALETTES[palette].hues,t=clamp(position,0,1)*(hues.length-1);
+  const i=Math.min(hues.length-2,Math.floor(t)),hue=hues[i]+(hues[i+1]-hues[i])*(t-i);
+  return `hsla(${hue},85%,${light}%,${alpha})`;
+}
+
 export function angleForString(id) {
   const fraction = ((id % PER_HAND) + .5) / PER_HAND;
   return Math.PI / 2 + (id < PER_HAND ? 1 : -1) * fraction * Math.PI;

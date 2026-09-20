@@ -4,9 +4,9 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 
 ## Play
 
-- **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Hijaz with Qanun and the warm Desert palette.
+- **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Hijaz with Qanun and the warm Rub al Khali gradient.
 - **Brush the lower-right corner** to catch short resonances alongside the plucks, without waiting for a hold. Diagonal sweeps pass through several colors. Fast bundled notes fan out over a few milliseconds; excitation and voice counts are bounded.
-- **Rake the horizontal strings on their own.** They pick up recent notes from the last eight seconds, or a vertical string another finger is holding, and return them as harmony, grains or echoes. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
+- **Rake the horizontal strings on their own.** Harmony rows retain the last explicitly played vertical string without an expiry. A held harmony retunes with a release crossfade when that anchor changes. Texture brushes can catch recent notes from the last eight seconds. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
 - **Use the empty corner as a resting place.** It makes no sound, but you can start a sweep there and move into the strings. Upper vertical strings pluck without selecting a hidden horizontal resonance.
 - **Hold** for 320 ms to couple the nearest crossing. The horizontal resonance blooms over about a second.
 - **Move while holding** to weave another crossing. The previous resonance fades over 600 ms while the next one rises. Moving to a new vertical string also gently plucks it.
@@ -24,9 +24,9 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 | SHIMMER | High octaves with independent tremolo |
 | OCTAVE | Fundamental and octave |
 | ECHO | Neighboring notes returning at dotted-eighth intervals |
-| ROOT | Low tonic and the played note below |
+| ROOT | Last vertical note and its lower octave |
 | MIRAGE | Reversed, windowed string grains |
-| PEDAL | Low tonic and fifth |
+| PEDAL | Last vertical note an octave below, with a fifth |
 
 Texture and pitch threads alternate within the same lower band. FIFTH, HARM and PEDAL deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
 
@@ -36,7 +36,7 @@ Hijaz, Hijazkar, Nahawand, Nikriz, Kurd, Rast and Bayati lead the scale picker, 
 
 Qanun uses slightly detuned plucked courses; Santur adds a bright hammer-like attack; Oud has a short wooden body. They are synthesized interpretations, not samples. Existing voices remain available.
 
-SETTINGS offers Desert, Rose dune, Copper, Oasis, Indigo night, Ember, Aurora and Neon. Palettes affect panels, controls, and both string families.
+SETTINGS offers Rub al Khali, Wadi Rum, Negev, Siwa, Zagros, Sinai, Lut and Neon. Four-stop gradients run along and across both string families. Warm gradients travel through pink, red, orange and gold. Only the loom changes color; the original dark navy UI and cyan controls stay fixed.
 
 The continuous strings carry wave packets outward from each contact. A bright knot indicates a held crossing; fine colored rings mark the recorded hand during playback. Reduced motion keeps brightness feedback while removing displacement. There are no decorative particles or pad cells.
 
@@ -46,7 +46,7 @@ Press **REC**, then play. The first pluck or horizontal brush starts two bars; a
 
 **PAUSE** retains the phrase, **PLAY** restarts it, and **CLEAR** releases recorded resonances and erases the phrase. Key / scale / octave retune subsequent playback. VOICE changes plucks; horizontal resonance types retain their identities. Tempo is locked during recording. A tempo change affects subsequently scheduled events; an already sounding held loop voice completes its scheduled release. Loops live in page memory and disappear on reload.
 
-**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. **PLUCK** plays one string. **CHORD** opens three scale degrees together. **ARP** cycles through those degrees while held, on eighth-note beats following BPM and sharing the transport clock. Each mode also supports held crossings; generated chord and arpeggio notes are recorded as plucks, so changing mode does not expand them again on playback.
+**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. **PLUCK** plays one string. Below 46% of its length, a fifth joins the note; below 76%, an octave joins too. Boundary hysteresis prevents repeated retriggers from a resting finger. Moving down the same string opens these layers without requiring another tap. **CHORD** opens three scale degrees together. **ARP** cycles through those degrees while held, on eighth-note beats following BPM and sharing the transport clock. Each mode also supports held crossings; vertical chord and arpeggio notes store their added intervals as individual plucks. Horizontal ARP works on the left ends as well as at crossings: it cycles through the selected row’s pitches, following the latest vertical anchor for harmony rows. Horizontal ARP events store the row, anchor string and note index. Loop playback preserves that anchor and retunes to KEY / SCALE without expanding the mode again.
 
 ## Controls and keyboard
 

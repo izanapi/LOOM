@@ -1,6 +1,6 @@
-import { frequency, clamp } from './music.mjs?v=desert-4';
-import { pluckedWave } from './voices.mjs?v=desert-4';
-import { WEFTS } from './loom.mjs?v=desert-4';
+import { frequency, clamp } from './music.mjs?v=dunes-5';
+import { pluckedWave } from './voices.mjs?v=dunes-5';
+import { WEFTS } from './loom.mjs?v=dunes-5';
 
 // Coupled strings enter the existing HANABI effects bus. Each contact owns its
 // envelope, so releasing one finger never releases another finger's resonance.
