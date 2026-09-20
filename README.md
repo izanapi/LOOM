@@ -9,7 +9,7 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 - **Rake the horizontal strings on their own.** Harmony rows retain the last explicitly played vertical string without an expiry. A held harmony retunes with a release crossfade when that anchor changes. Texture brushes can catch recent notes from the last eight seconds. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
 - **Use the empty corner as a resting place.** It makes no sound, but you can start a sweep there and move into the strings. Upper vertical strings pluck without selecting a hidden horizontal resonance.
 - **Hold** for 320 ms to couple the nearest crossing. The horizontal resonance blooms over about a second.
-- **Move while holding** to weave another crossing. The previous resonance fades over 600 ms while the next one rises. Moving to a new vertical string also gently plucks it.
+- **Move while holding** to weave another crossing. Harmony releases fade over 600 ms; texture releases last 3.5 seconds and DRONE releases last 7 seconds while the next crossing rises. Moving to a new vertical string also gently plucks it.
 - **Pull sideways** within a crossing to strengthen the resonance. Multiple fingers work independently; holding the same horizontal string with several fingers strengthens their common resonance and produces slow beating.
 - **Release** to let the resonance fall away. Cancelling a touch, leaving the window, opening settings or resizing releases contacts. Esc stops all audio. Page hiding or audio interruption also pauses the loop.
 
@@ -26,9 +26,9 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 | ECHO | Neighboring notes returning at dotted-eighth intervals |
 | ROOT | Last vertical note and its lower octave |
 | MIRAGE | Reversed, windowed string grains |
-| PEDAL | Last vertical note an octave below, with a fifth |
+| DRONE | Deep pitch-class foundation in the C1–B1 register, with an octave |
 
-Texture and pitch threads alternate within the same lower band. FIFTH, HARM and PEDAL deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
+Texture and pitch threads alternate within the same lower band. FIFTH and HARM deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
 
 ## LOOM tunings and colors
 
@@ -38,15 +38,15 @@ Qanun uses slightly detuned plucked courses; Santur adds a bright hammer-like at
 
 SETTINGS offers Rub al Khali, Wadi Rum, Negev, Siwa, Zagros, Sinai, Lut and Neon. Four-stop gradients run along and across both string families. Warm gradients travel through pink, red, orange and gold. Only the loom changes color; the original dark navy UI and cyan controls stay fixed.
 
-The continuous strings carry wave packets outward from each contact. A bright knot indicates a held crossing; fine colored rings mark the recorded hand during playback. Reduced motion keeps brightness feedback while removing displacement. There are no decorative particles or pad cells.
+The continuous strings carry wave packets outward from each contact. Release tails keep the corresponding strings softly vibrating until the sound fades. A bright knot indicates a held crossing; fine colored rings mark the recorded hand during playback. Reduced motion keeps brightness feedback while removing displacement. There are no decorative particles or pad cells.
 
 ## Loop
 
 Press **REC**, then play. The first pluck or horizontal brush starts two bars; a click guides recording. Plucks store string position and articulation. Couplings also store **vertical string, horizontal string, start step, strength and duration**. Brushed resonances retain their faster attack and their excitation position along the horizontal string. Onset is quantized to sixteenths; hold lengths retain fractional steps. Contacts held beyond the end are clipped to the loop boundary. The loop restarts automatically, reproducing both resonance and string motion under your live playing.
 
-**PAUSE** retains the phrase, **PLAY** restarts it, and **CLEAR** releases recorded resonances and erases the phrase. Key / scale / octave retune subsequent playback. VOICE changes plucks; horizontal resonance types retain their identities. Tempo is locked during recording. A tempo change affects subsequently scheduled events; an already sounding held loop voice completes its scheduled release. Loops live in page memory and disappear on reload.
+**PAUSE** retains the phrase, **PLAY** restarts it, and **CLEAR** releases recorded resonances and erases the phrase. Key / scale / octave retune subsequent playback. VOICE changes vertical plucks and harmony threads together. Harmony holds gently re-excite that same synthesis while held. Texture threads and the lowest DRONE retain their own synthesis. Tempo is locked during recording. A tempo change affects subsequently scheduled events; an already sounding held loop voice completes its scheduled release. Loops live in page memory and disappear on reload.
 
-**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. **PLUCK** plays one string. Below 46% of its length, a fifth joins the note; below 76%, an octave joins too. Boundary hysteresis prevents repeated retriggers from a resting finger. Moving down the same string opens these layers without requiring another tap. **CHORD** opens three scale degrees together. **ARP** cycles through those degrees while held, on eighth-note beats following BPM and sharing the transport clock. Each mode also supports held crossings; vertical chord and arpeggio notes store their added intervals as individual plucks. Horizontal ARP works on the left ends as well as at crossings: it cycles through the selected row’s pitches, following the latest vertical anchor for harmony rows. Horizontal ARP events store the row, anchor string and note index. Loop playback preserves that anchor and retunes to KEY / SCALE without expanding the mode again.
+**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. **PLUCK** plays one string. Below 46% of its length, a fifth joins the note; below 76%, an octave joins too. The vertical strings change gradient color at marked +5th and +8ve boundaries. Boundary hysteresis prevents repeated retriggers from a resting finger. Moving down the same string opens these layers without requiring another tap. **CHORD** opens three scale degrees together. **ARP** cycles through those degrees while held, on eighth-note beats following BPM and sharing the transport clock. Each mode also supports held crossings; vertical chord and arpeggio notes store their added intervals as individual plucks. Horizontal ARP works on the left ends as well as at crossings: it cycles through the selected row’s pitches, following the latest vertical anchor for harmony rows. Horizontal ARP events store the row, anchor string and note index. Loop playback preserves that anchor and retunes to KEY / SCALE without expanding the mode again.
 
 ## Controls and keyboard
 

@@ -1,4 +1,4 @@
-import { VOICES } from './voices.mjs?v=dunes-5';
+import { VOICES } from './voices.mjs?v=sustain-6';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {

@@ -136,6 +136,25 @@ test('Hijaz is the actual initial tuning and UI selection', () => {
   const h = harness(); assert.equal(h.config.scale, 'hijaz'); assert.equal(h.elements.get('scale').value, 'hijaz');
   assert.equal(h.config.voice,'qanun');
 });
+test('harmony brushes and holds use the selected vertical voice',async()=>{
+ const h=harness();h.elements.get('voice').value='glass';h.elements.get('voice').dispatch('change');
+ h.pointer('pointerdown',1,null,3);await h.flush();h.advance(1.6);
+ assert.ok(h.audio.calls.length>=4);assert.ok(h.audio.calls.every(n=>n.voice==='glass'));
+ assert.ok(h.audio.calls.every(n=>n.output));
+ h.pointer('pointerup',1,null,3);h.pause();
+});
+test('drone stays in the deep register and textures keep their release tails',async()=>{
+ const h=harness();
+ for(const id of [0,7,13])for(const octave of [-1,0,1]){
+   const notes=loom.resonanceNotes(id,11,{...h.config,octave});assert.ok(notes[0]>=24&&notes[0]<36);
+ }
+ h.pointer('pointerdown',1,null,11);await h.flush();h.advance(.5);
+ const drone=h.fingers.get(1).handle;h.pointer('pointerup',1,null,11);h.advance(2);
+ assert.ok(h.resonance.active.has(drone));assert.equal(drone.release,7);
+ h.pointer('pointerdown',2,null,2);h.advance(.5);const dust=h.fingers.get(2).handle;
+ h.pointer('pointerup',2,null,2);h.advance(1);assert.ok(h.resonance.active.has(dust));assert.equal(dust.release,3.5);
+ h.advance(8);assert.equal(h.resonance.active.size,0);h.pause();
+});
 
 test('lower-only harmonies remember the last vertical note and retune while held',async()=>{
   const h=harness();h.pointer('pointerdown',1,7,null);await h.flush();h.pointer('pointerup',1,7,null);
@@ -164,8 +183,8 @@ test('sliding down one string adds a fifth then an octave and records both inter
   const h=harness(),g=h.geometry,canvas=h.elements.get('canvas');h.elements.get('loop').dispatch('click');await h.flush();
   const point=depth=>({pointerId:9,clientX:loom.warpX(2,g),clientY:g.top+depth*(g.bottom-g.top),timeStamp:performance.now(),pointerType:'touch'});
   canvas.dispatch('pointerdown',point(.1));assert.deepEqual(h.audio.calls.map(n=>n.midi),[52]);
-  h.advance(.1);canvas.dispatch('pointermove',point(.6));assert.deepEqual(h.audio.calls.slice(-2).map(n=>n.midi),[52,59]);
-  h.advance(.1);canvas.dispatch('pointermove',point(.9));assert.deepEqual(h.audio.calls.slice(-3).map(n=>n.midi),[52,59,64]);
+  h.advance(.1);canvas.dispatch('pointermove',point(.6));assert.deepEqual(h.audio.calls.filter(n=>!n.output).slice(-2).map(n=>n.midi),[52,59]);
+  h.advance(.1);canvas.dispatch('pointermove',point(.9));assert.deepEqual(h.audio.calls.filter(n=>!n.output).slice(-3).map(n=>n.midi),[52,59,64]);
   assert.ok(h.loop.events.some(e=>e.interval===12));canvas.dispatch('pointerup',point(.9));h.pause();
 });
 
@@ -301,7 +320,7 @@ test('keyboard holds couple to the chosen weft and all twelve timbres release', 
   const h=harness(),canvas=h.elements.get('canvas');
   for(let row=0;row<12;row++){
     canvas.dispatch('keydown',{code:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'][row]});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
-    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});h.advance(.8);
+    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});h.advance(loom.weftRelease(row)+.2);
     assert.equal(h.resonance.active.size,0);
   }h.pause();
 });
@@ -313,7 +332,7 @@ test('rapid reweaving bounds resonance groups without stealing a resting live fi
     h.audio.context.advance(.005);h.pointer('pointermove',2,2+i%10,i%6);h.schedule();
     assert.ok(h.resonance.active.size<=24);assert.equal(h.resonance.active.has(anchor),true);
   }
-  h.releaseAll();h.advance(1);assert.equal(h.resonance.active.size,0);h.pause();
+  h.releaseAll();h.advance(4);assert.equal(h.resonance.active.size,0);h.pause();
 });
 
 test('empty space stays silent, but a sweep starting there can catch the string bank', async () => {
@@ -337,5 +356,7 @@ test('a fast diagonal stroke excites notes and short resonances without a hold',
   h.pointer('pointerdown',1,0,0);h.pointer('pointermove',1,13,5);h.pointer('pointerup',1,13,5);
   assert.ok(h.audio.calls.length>=14);assert.ok(h.loop.events.filter(e=>e.gesture==='brush').length>=6);
   assert.equal([...h.resonance.active].filter(h=>h.source==='live').length,0);h.advance(2);
+  assert.ok(h.resonance.active.size>0,'texture tails remain after the sweep');
+  h.elements.get('loop').dispatch('click');h.advance(4);
   assert.equal(h.resonance.active.size,0);h.pause();
 });

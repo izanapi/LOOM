@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=dunes-5';
-import { InstrumentAudio } from './audio.mjs?v=dunes-5';
-import { VOICES } from './voices.mjs?v=dunes-5';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals } from './loom.mjs?v=dunes-5';
-import { LoomResonance } from './resonance.mjs?v=dunes-5';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=sustain-6';
+import { InstrumentAudio } from './audio.mjs?v=sustain-6';
+import { VOICES } from './voices.mjs?v=sustain-6';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals } from './loom.mjs?v=sustain-6';
+import { LoomResonance } from './resonance.mjs?v=sustain-6';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -49,7 +49,10 @@ function stringGradient(axis,index,alpha){
   const g=geometry,vertical=axis==='v';
   const gradient=ctx.createLinearGradient(vertical?0:g.weftLeft,vertical?g.top:0,vertical?0:g.right,vertical?g.bottom:0);
   const bank=index/(vertical?WARP_COUNT-1:WEFTS.length-1);
-  for(let i=0;i<=4;i++)gradient.addColorStop(i/4,paletteColor(config.palette,bank*.4+i/4*.6,70,alpha));
+  if(vertical){
+    for(const [at,color] of [[0,0],[.459,.15],[.46,.48],[.759,.61],[.76,.86],[1,1]])
+      gradient.addColorStop(at,paletteColor(config.palette,color*.88+bank*.12,at>=.76?77:70,alpha));
+  }else for(let i=0;i<=4;i++)gradient.addColorStop(i/4,paletteColor(config.palette,bank*.4+i/4*.6,70,alpha));
   return gradient;
 }
 function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x=null){
@@ -121,8 +124,8 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   if(!seeds.length)seeds.push(0,4);
   const chosen=isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
-    const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
-    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,source:'brush',pan:(id/13-.5)*.9});
+    const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
+    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:(id/13-.5)*.9});
     const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
     visualQueue.push({time:when,id,strength:.38+velocity*.2,row,y:weftY(row,geometry),x:originX,fromLoop:false,brush:true});
@@ -132,7 +135,7 @@ function couple(finger,when=audio.time){
   if(finger.row===null||finger.handle)return;
   const id=anchorFor(finger);
   finger.coupled=true;finger.joined=when;
-  finger.handle=resonance.start(resonanceNotes(id,finger.row,config),finger.row,{id,level:finger.velocity,pan:(id/13-.5)*.9});
+  finger.handle=resonance.start(resonanceNotes(id,finger.row,config),finger.row,{id,voice:config.voice,level:finger.velocity,pan:(id/13-.5)*.9});
   finger.record=record({type:'weave',id,row:finger.row,velocity:finger.velocity,duration:1},when);
   visualize(id,.75,false,finger.row);
 }
@@ -193,7 +196,7 @@ function schedule(){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
-          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:(e.id/13-.5)*.9});
+          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:(e.id/13-.5)*.9});
           visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:e.x==null?null:e.x*geometry.width,fromLoop:true});
         }else emit(e.id,e.velocity*.8,e.brightness,when,'loop',e.interval||0,geometry.top+e.y*(geometry.bottom-geometry.top));
       }
@@ -309,7 +312,7 @@ $('randomize').addEventListener('click', () => {
   hint(`${NOTES[config.root]}, ${SCALES[config.scale].name}, ${config.voice}`);
 });
 for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id).addEventListener('change', event => {
-  if (['root', 'scale', 'octave'].includes(id)) releaseAll();
+  if (['root', 'scale', 'octave', 'voice'].includes(id)) releaseAll();
   config[id] = ['root', 'octave', 'swing'].includes(id) ? Number(event.target.value) : event.target.value;
   if (['root', 'scale', 'octave'].includes(id)) tuningReadout();
   if (id === 'scale' && flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
@@ -354,8 +357,8 @@ function draw(ms){
   for(const s of strings)s.energy*=Math.exp(-dt*2.7);
   for(const r of rows)r.energy*=Math.exp(-dt*1.8);
   for(let i=pulses.length-1;i>=0;i--){pulses[i].age+=dt;if(pulses[i].age>2.4)pulses.splice(i,1);}
-  const active=[...resonance.active].filter(h=>h.t<=audio.time&&audio.time<h.end);
-  const strength=h=>Math.min(1,(audio.time-h.t)/h.attack)*.65;
+  const active=[...resonance.active].filter(h=>h.t<=audio.time&&audio.time<(h.cleanup??h.end));
+  const strength=h=>Math.min(1,(audio.time-h.t)/h.attack)*.65*(audio.time>h.end?Math.exp(-5*(audio.time-h.end)/h.release):1);
   for(const h of active){strings[h.id].energy=Math.max(strings[h.id].energy,strength(h));rows[h.row].energy=Math.max(rows[h.row].energy,strength(h));}
   const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
   // Two understated bridges anchor real continuous filaments, not a pad grid.
@@ -386,6 +389,13 @@ function draw(ms){
     if(config.showNotes){ctx.font=`${g.width<500?9:11}px ui-monospace,monospace`;ctx.textAlign='center';ctx.fillStyle=e>.12?colorFor(s.id,84):'#96a3b5';
       ctx.fillText(noteName(midi(s.id)).replace('↓50','↓'),x,g.bottom+24+(g.dx<24&&s.id%2?12:0));}
   }
+  // Short marks belong to each vertical string, not an extra playable weft.
+  for(const [depth,label,color] of [[.46,'+5th',.52],[.76,'+8ve',.9]]){
+    const y=g.top+(g.bottom-g.top)*depth;
+    ctx.fillStyle=paletteColor(config.palette,color,80,.8);ctx.font='9px ui-monospace,monospace';ctx.textAlign='right';ctx.fillText(label,g.left-9,y+3);
+    ctx.strokeStyle=paletteColor(config.palette,color,80,.55);ctx.lineWidth=1;
+    for(const s of strings){const x=warpX(s.id,g);line(x-2,y,x+2,y);}
+  }
   for(let row=0;row<WEFTS.length;row++){
     const y=weftY(row,g),e=rows[row].energy,start=g.weftLeft,end=g.right+10;
     // Draw the weft as a double filament; the slight over/under deflection makes
@@ -412,8 +422,8 @@ function draw(ms){
     if(!f.coupled){ctx.strokeStyle='#dafff6a0';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,7,-Math.PI/2,-Math.PI/2+Math.PI*2*progress);ctx.stroke();}
     if(Number.isFinite(f.x)&&!isCalm){ctx.strokeStyle='#dffff73a';ctx.lineWidth=.7;line(x,y,f.x,f.y);}
   }
-  const live=active.filter(h=>h.source==='live');
-  const brushing=active.filter(h=>h.source==='brush');
+  const live=active.filter(h=>h.source==='live'&&audio.time<h.end);
+  const brushing=active.filter(h=>h.source==='brush'&&audio.time<h.end);
   $('touchState').textContent=live.length?`${live.length} ${live.length===1?'CROSSING':'CROSSINGS'} · ${[...new Set(live.map(h=>WEFTS[h.row].name))].join(' / ')}`:
     brushing.length?'BRUSH · '+new Set(brushing.map(h=>h.row)).size+' THREADS':'SWEEP THROUGH THE STRINGS';
   if(audio.context&&clock.timer!==null){

@@ -1,5 +1,5 @@
-import { frequency, clamp } from './music.mjs?v=dunes-5';
-import { VOICES, pluckedWave } from './voices.mjs?v=dunes-5';
+import { frequency, clamp } from './music.mjs?v=sustain-6';
+import { VOICES, pluckedWave } from './voices.mjs?v=sustain-6';
 
 // A diffuse, decorrelated stereo tail with early reflections and a 5.2 s RT60.
 export function hallImpulse(ac) {
@@ -110,7 +110,7 @@ export class InstrumentAudio {
     return this.spectrum;
   }
   get time() { return this.context?.currentTime ?? 0; }
-  play(midi, { voice = 'kalimba', velocity = .65, brightness = .6, pan = 0, when = this.time } = {}) {
+  play(midi, { voice = 'kalimba', velocity = .65, brightness = .6, pan = 0, when = this.time, output = this.input } = {}) {
     const ac = this.context;
     if (!ac || ac.state === 'closed') return;
     const t = Math.max(when, ac.currentTime), f = frequency(midi);
@@ -122,7 +122,7 @@ export class InstrumentAudio {
     const env = ac.createGain(), filter = ac.createBiquadFilter(), stereo = ac.createStereoPanner();
     filter.type = 'lowpass'; filter.frequency.value = 950 + brightness * 10000;
     stereo.pan.value = clamp(pan, -.8, .8);
-    env.connect(filter); filter.connect(stereo); stereo.connect(this.input);
+    env.connect(filter); filter.connect(stereo); stereo.connect(output);
     const amp = profile.gain * clamp(velocity, .15, 1);
     env.gain.setValueAtTime(.0001, t);
     env.gain.linearRampToValueAtTime(amp, t + attack);

@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs?v=dunes-5';
+import { SCALES, clamp } from './music.mjs?v=sustain-6';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
@@ -14,7 +14,7 @@ export const WEFTS = [
   { name: 'ECHO', kind:'echo', detail: 'returning neighbors' },
   { name: 'ROOT', kind:'root', detail: 'last-note drone' },
   { name: 'MIRAGE', kind:'mirage', detail: 'reversed string grains' },
-  { name: 'PEDAL', kind:'pedal', detail: 'last note and fifth below' },
+  { name: 'DRONE', kind:'drone', detail: 'deep sustained foundation' },
 ];
 export function loomGeometry(width, height) {
   const left = width * .47, right = width - (width < 500 ? 22 : 52);
@@ -71,11 +71,12 @@ export function resonanceNotes(id, row, config) {
     silk:[base,degreeMidi(id+4,config)], third:[base,degreeMidi(id+2,config)],
     shimmer:[base+12,base+24], octave:[base,base+12],
     echo:[base,degreeMidi(id+1,config),base+12], root:[base-12,base],
-    mirage:[base,degreeMidi(id-1,config)+12], pedal:[base-12,base-5],
+    mirage:[base,degreeMidi(id-1,config)+12], drone:[24+((base%12)+12)%12,36+((base%12)+12)%12],
   }[WEFTS[row].kind];
 }
 export const wovenChord = id => [0,2,4].map(offset=>(id+offset)%WARP_COUNT);
-export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','pedal'].includes(WEFTS[row].kind);
+export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','drone'].includes(WEFTS[row].kind);
+export const weftRelease = row => WEFTS[row].kind==='drone'?7:isHarmony(row)?.6:3.5;
 // Depth is measured along a string, never against the moving wave itself.
 export function warpLayer(y,g,previous=0){
   const depth=(y-g.top)/(g.bottom-g.top),h=.018;
