@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=restrike-14';
-import { InstrumentAudio } from './audio.mjs?v=restrike-14';
-import { VOICES } from './voices.mjs?v=restrike-14';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=restrike-14';
-import { LoomResonance } from './resonance.mjs?v=restrike-14';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=tonic-15';
+import { InstrumentAudio } from './audio.mjs?v=tonic-15';
+import { VOICES } from './voices.mjs?v=tonic-15';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=tonic-15';
+import { LoomResonance } from './resonance.mjs?v=tonic-15';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -108,7 +108,7 @@ function verticalNote(id,velocity,brightness,when,source,y,layer=warpLayer(y,geo
   const levels=[1,.42,.32],normal=Math.sqrt(intervals.reduce((sum,_,i)=>sum+levels[i]**2,0));
   intervals.forEach((interval,i)=>emit(id,velocity*levels[i]/normal,brightness,when,source,interval,y));
 }
-function anchorFor(f){return isDrone(f.row)?0:isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
+function anchorFor(f){return (isDrone(f.row)||WEFTS[f.row]?.kind==='tonic')?0:isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
 function threadNote(id,row,index,velocity,when,source='arp'){
   if(isDrone(row))return;
   const notes=resonanceNotes(id,row,config),note=notes[index%notes.length];
@@ -124,9 +124,9 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
   const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
   if(!seeds.length)seeds.push(0,4);
-  const chosen=isDrone(row)?[0]:isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
+  const chosen=(isDrone(row)||WEFTS[row]?.kind==='tonic')?[0]:isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
-    const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
+    const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*(WEFTS[row].kind==='tonic'?.85:.52);
     resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',retrigger:true,pan:isDrone(row)?0:(id/13-.5)*.9});
     const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
@@ -261,7 +261,7 @@ let keyboardRow=2;
 canvas.addEventListener('keydown',e=>{
   canvas.classList.remove('pointer-playing');
   const id=keyboard.indexOf(e.code);
-  const rowKey=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'].indexOf(e.code);
+  const rowKey=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal','Backslash'].indexOf(e.code);
   if(rowKey>=0){keyboardRow=rowKey;hint('Hold a note key × '+WEFTS[keyboardRow].name);}
   else if(id>=0){e.preventDefault();if(e.repeat||pressedKeys.has(e.code))return;pressedKeys.add(e.code);startAudio();
     fingers.set(e.code,{id,row:keyboardRow,velocity:.7,started:audio.time,coupled:false});pluck(id,.7,.6,weftY(keyboardRow,geometry));
@@ -405,7 +405,7 @@ function draw(ms){
     // Draw the weft as a double filament; the slight over/under deflection makes
     // the crossing legible without boxes, filled cells or button hit regions.
     for(let ply=0;ply<2;ply++){
-      ctx.strokeStyle=stringGradient('h',row,(ply?.16:isDrone(row)?.65:.4)+e*(ply?.22:.35));ctx.lineWidth=isDrone(row)?(ply?.8:2+e*.8):(ply?.55:.8+e*.65);
+      ctx.strokeStyle=stringGradient('h',row,(ply?.16:isDrone(row)?.65:.4)+e*(ply?.22:.35));ctx.lineWidth=isDrone(row)?(ply?.8:2+e*.8):(ply?.55:(WEFTS[row].kind==='tonic'?1.3:.8)+e*.65);
       ctx.shadowColor=rowColor(row);ctx.shadowBlur=e*glow*7;
       ctx.beginPath();ctx.moveTo(start,y+ply*2);
       for(let x=start;x<=end;x+=3){const envelope=Math.sin(Math.PI*(x-start)/(end-start));const weave=Math.sin((x-g.left)/g.dx*Math.PI)*.6;

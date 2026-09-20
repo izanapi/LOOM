@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs?v=restrike-14';
+import { SCALES, clamp } from './music.mjs?v=tonic-15';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
@@ -14,6 +14,7 @@ export const WEFTS = [
   { name: 'ECHO', kind:'echo', detail: 'returning neighbors' },
   { name: 'ROOT', kind:'root', detail: 'last-note drone' },
   { name: 'MIRAGE', kind:'mirage', detail: 'reversed string grains' },
+  { name: 'TONIC', kind:'tonic', detail:'lowest warp root' },
   { name: 'DRONE', kind:'drone', detail: 'deep sustained foundation' },
 ];
 export function loomGeometry(width, height) {
@@ -36,7 +37,7 @@ export function intersection(point, g, previous = null) {
   if (vertical && previous?.id != null && Math.abs(point.x-warpX(previous.id,g)) < g.dx*.61) id=previous.id;
   if (horizontal && previous?.row != null && Math.abs(point.y-weftY(previous.row,g)) < g.dy*.59) row=previous.row;
   // The independent bass never plucks a crossing warp.
-  return {id:row===WEFTS.length-1?null:id,row};
+  return {id:row>=WEFTS.length-2?null:id,row};
 }
 export function crossedWarps(from, to, g) {
   const count=Math.min(160,Math.max(1,Math.ceil(Math.hypot(to.x-from.x,to.y-from.y)/5)));
@@ -73,11 +74,11 @@ export function resonanceNotes(id, row, config) {
     silk:[base,degreeMidi(id+4,config)], third:[base,degreeMidi(id+2,config)],
     shimmer:[base+12,base+24], octave:[base,base+12],
     echo:[base,degreeMidi(id+1,config),base+12], root:[base-12,base],
-    mirage:[base,degreeMidi(id-1,config)+12], drone:[bass],
+    mirage:[base,degreeMidi(id-1,config)+12], tonic:[degreeMidi(0,config)], drone:[bass],
   }[WEFTS[row].kind];
 }
 export const wovenChord = id => [0,2,4].map(offset=>(id+offset)%WARP_COUNT);
-export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','drone'].includes(WEFTS[row].kind);
+export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','tonic','drone'].includes(WEFTS[row].kind);
 export const weftRelease = row => WEFTS[row].kind==='drone'?7:isHarmony(row)?.6:3.5;
 export const isDrone = row => WEFTS[row]?.kind==='drone';
 export const droneX = g => (g.weftLeft+g.left)/2;

@@ -1,6 +1,6 @@
 # LOOM
 
-An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, effects and transport, with eleven synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder. Its strings form an L: 14 melodic strings gathered on the right, twelve resonance strings gathered below, and a quiet empty corner at the upper left.
+An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, effects and transport, with eleven synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder. Its strings form an L: 14 melodic strings gathered on the right, thirteen resonance strings gathered below, and a quiet empty corner at the upper left.
 
 ## Play
 
@@ -26,6 +26,7 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 | ECHO | Neighboring notes returning at dotted-eighth intervals |
 | ROOT | Last vertical note and its lower octave |
 | MIRAGE | Reversed, windowed string grains |
+| TONIC | Lowest vertical string’s root, following KEY / octave, using the selected VOICE |
 | DRONE | One independent KEY root in the C1–B1 register across the entire string; no frets or octave doubling |
 
 Texture and pitch threads alternate within the same lower band. FIFTH and HARM deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
@@ -84,6 +85,6 @@ Open http://127.0.0.1:8071. ES modules need an HTTP server. Audio starts on the 
 node --test tests/*.test.mjs
 ```
 
-The suite retains the original music/audio checks and replaces circular-gesture checks with tap/hold, weaving, multitouch, cancellation, crossing-duration recording, loop-boundary and keyboard tests. `tests/browser.cjs` checks actual Chrome touch input and five viewport sizes; `tests/sound.cjs` renders all twelve resonances, the three new voices and a ten-contact mix through Web Audio to check audibility, finite output and release. These browser scripts use the local bundled Playwright and installed Chrome paths; adjust them on other machines. Generated screenshots and the dry resonance check WAV are in `artifacts/`.
+The suite retains the original music/audio checks and replaces circular-gesture checks with tap/hold, weaving, multitouch, cancellation, crossing-duration recording, loop-boundary and keyboard tests. `tests/browser.cjs` checks actual Chrome touch input and five viewport sizes; `tests/sound.cjs` renders all thirteen resonances, the three new voices and a ten-contact mix through Web Audio to check audibility, finite output and release. These browser scripts use the local bundled Playwright and installed Chrome paths; adjust them on other machines. Generated screenshots and the dry resonance check WAV are in `artifacts/`.
 
 Actual iPhone Safari sound, latency and prolonged touch feel still require device testing.

@@ -4,12 +4,12 @@ import { SCALES, noteName, frequency, LOOM_SCALES, PALETTES, paletteColor } from
 import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals,droneX } from '../loom.mjs';
 test('drone is exactly one KEY root independent of scale, warp and octave',()=>{
  for(const scale of Object.keys(SCALES))for(let root=0;root<12;root++)for(const octave of [-1,0,1])for(const id of [0,7,13])
-  assert.deepEqual(resonanceNotes(id,11,{root,scale,octave}),[24+root]);
+  assert.deepEqual(resonanceNotes(id,12,{root,scale,octave}),[24+root]);
 });
 test('the entire drone string avoids triggering crossing warps',()=>{
  for(const [width,height] of [[320,250],[390,500],[900,660]]){
   const g=loomGeometry(width,height);
-  for(let x=g.weftLeft;x<=g.right+10;x+=.5)assert.deepEqual(intersection({x,y:weftY(11,g)},g),{id:null,row:11});
+  for(let x=g.weftLeft;x<=g.right+10;x+=.5)assert.deepEqual(intersection({x,y:weftY(12,g)},g),{id:null,row:12});
  }
 });
 test('every string palette has a continuous multi-stop gradient',()=>{
@@ -34,7 +34,7 @@ test('quarter tones keep their pitch and readable labels',()=>{
 test('every crossing targets the same pitch and row on small and large surfaces',()=>{
  for(const [w,h] of [[320,250],[390,550],[900,660]]){
   const g=loomGeometry(w,h);
-  for(let id=0;id<14;id++)for(let row=0;row<12;row++)assert.deepEqual(intersection({x:warpX(id,g),y:weftY(row,g)},g),{id:row===11?null:id,row});
+  for(let id=0;id<14;id++)for(let row=0;row<13;row++)assert.deepEqual(intersection({x:warpX(id,g),y:weftY(row,g)},g),{id:row>=11?null:id,row});
   assert.equal(intersection({x:0,y:0},g),null);
   assert.equal(crossedWarps({x:warpX(0,g),y:weftY(2,g)},{x:warpX(13,g),y:weftY(2,g)},g).length,13);
   assert.deepEqual(intersection({x:warpX(5,g)+g.dx*.55,y:weftY(2,g)},g,{id:5,row:2}),{id:5,row:2});
@@ -46,7 +46,7 @@ test('the empty corner is silent and each arm of the L targets only its own stri
     assert.equal(intersection({x,y:g.top+10},g),null);
     assert.deepEqual(intersection({x:warpX(4,g),y:g.top+10},g),{id:4,row:null});
     assert.deepEqual(intersection({x,y:weftY(3,g)},g),{id:null,row:3});
-    assert.deepEqual(crossedWefts({x,y:g.weftTop-g.dy},{x,y:g.weftBottom+g.dy},g).map(h=>h.row),Array.from({length:12},(_,i)=>i));
+    assert.deepEqual(crossedWefts({x,y:g.weftTop-g.dy},{x,y:g.weftBottom+g.dy},g).map(h=>h.row),Array.from({length:13},(_,i)=>i));
     assert.equal(crossedWarps({x,y:g.top+10},{x:g.width,y:g.top+10},g).length,14);
   }
 });
@@ -57,5 +57,11 @@ test('ascending strings and BLOOM stay in every selected scale across octaves',(
    const midi=degreeMidi(id,c);assert(midi>previous);previous=midi;
    for(const note of resonanceNotes(id,0,c))assert(SCALES[scale].intervals.includes(((note-root)%12+12)%12));
   }
+ }
+});
+
+test('TONIC matches the lowest warp across all tunings and ignores the melody anchor',()=>{
+ for(const scale of Object.keys(SCALES))for(let root=0;root<12;root++)for(const octave of [-1,0,1]){
+ const config={scale,root,octave};for(const id of [0,7,13])assert.deepEqual(resonanceNotes(id,11,config),[degreeMidi(0,config)]);
  }
 });

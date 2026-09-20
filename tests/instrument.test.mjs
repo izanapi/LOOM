@@ -146,47 +146,47 @@ test('harmony brushes and holds use the selected vertical voice',async()=>{
 test('drone stays in the deep register and textures keep their release tails',async()=>{
  const h=harness();
  for(const id of [0,7,13])for(const octave of [-1,0,1]){
-   const notes=loom.resonanceNotes(id,11,{...h.config,octave});assert.ok(notes[0]>=24&&notes[0]<36);
+   const notes=loom.resonanceNotes(id,12,{...h.config,octave});assert.ok(notes[0]>=24&&notes[0]<36);
  }
- h.pointer('pointerdown',1,null,11);await h.flush();h.advance(.5);
- const drone=h.fingers.get(1).handle;h.pointer('pointerup',1,null,11);h.advance(2);
+ h.pointer('pointerdown',1,null,12);await h.flush();h.advance(.5);
+ const drone=h.fingers.get(1).handle;h.pointer('pointerup',1,null,12);h.advance(2);
  assert.ok(h.resonance.active.has(drone));assert.equal(drone.stopping,false);
  h.pointer('pointerdown',2,null,2);h.advance(.5);const dust=h.fingers.get(2).handle;
  h.pointer('pointerup',2,null,2);h.advance(1);assert.ok(h.resonance.active.has(dust));assert.equal(dust.release,3.5);
  h.advance(30);assert.ok(h.resonance.active.has(drone));assert.ok(!h.resonance.active.has(dust));h.pause();assert.equal(h.resonance.active.size,0);
 });
 test('latched drone stays level, does not stack on retrigger, and CLEAR stops it',async()=>{
- const h=harness();h.pointer('pointerdown',1,null,11);await h.flush();h.advance(.5);
+ const h=harness();h.pointer('pointerdown',1,null,12);await h.flush();h.advance(.5);
  const drone=h.fingers.get(1).handle,level=drone.env.gain.value;
- h.pointer('pointerup',1,null,11);h.audio.context.advance(180);h.schedule();
+ h.pointer('pointerup',1,null,12);h.audio.context.advance(180);h.schedule();
  assert.equal(drone.env.gain.value,level);assert.equal(drone.stopping,false);
- for(let i=0;i<8;i++){h.pointer('pointerdown',2,null,11);const strike=drone.strikeTime;assert.equal(strike,h.audio.time);h.advance(.4);assert.equal(drone.strikeTime,strike,'holding does not strike again');h.pointer('pointerup',2,null,11);}
- assert.equal([...h.resonance.active].filter(h=>h.row===11).length,1);
+ for(let i=0;i<8;i++){h.pointer('pointerdown',2,null,12);const strike=drone.strikeTime;assert.equal(strike,h.audio.time);h.advance(.4);assert.equal(drone.strikeTime,strike,'holding does not strike again');h.pointer('pointerup',2,null,12);}
+ assert.equal([...h.resonance.active].filter(h=>h.row===12).length,1);
  h.elements.get('clearLoop').dispatch('click');assert.equal(h.resonance.active.size,0);h.pause();
 });
 
 test('drone stays one root while sliding, playing warps and replaying a loop',async()=>{
  const h=harness(),g=h.geometry,canvas=h.elements.get('canvas');
  h.elements.get('root').value='2';h.elements.get('root').dispatch('change');
- const point=x=>({pointerId:41,clientX:x,clientY:loom.weftY(11,g),timeStamp:performance.now(),pointerType:'touch'});
+ const point=x=>({pointerId:41,clientX:x,clientY:loom.weftY(12,g),timeStamp:performance.now(),pointerType:'touch'});
  h.elements.get('loop').dispatch('click');canvas.dispatch('pointerdown',point(g.weftLeft));await h.flush();h.advance(.5);
  const original=h.fingers.get(41).handle;assert.deepEqual(original.notes,[26]);
  h.pointer('pointerdown',42,12,null);h.advance(.2);h.pointer('pointerup',42,12,null);
  const plucks=h.loop.events.filter(e=>e.type==='pluck').length;
  for(const x of [g.left,g.right,g.weftLeft]){canvas.dispatch('pointermove',point(x));h.advance(.2);assert.equal(h.fingers.get(41).handle,original);}
  assert.equal(h.loop.events.filter(e=>e.type==='pluck').length,plucks);
- assert.ok(h.loop.events.some(e=>e.type==='weave'&&e.row===11));
+ assert.ok(h.loop.events.some(e=>e.type==='weave'&&e.row===12));
  canvas.dispatch('pointerup',point(g.weftLeft));h.advance(5.5);assert.equal(h.loop.state,'playing');
- const replay=[...h.resonance.active].find(e=>e.source==='loop'&&e.row===11);assert.ok(replay);assert.deepEqual(replay.notes,[26]);h.pause();
+ const replay=[...h.resonance.active].find(e=>e.source==='loop'&&e.row===12);assert.ok(replay);assert.deepEqual(replay.notes,[26]);h.pause();
 });
 
 test('ARP leaves DRONE as one sustained root without extra plucks',async()=>{
  const h=harness();h.modes[2].dispatch('click');h.elements.get('loop').dispatch('click');
- h.pointer('pointerdown',1,null,11);await h.flush();h.advance(1.5);
+ h.pointer('pointerdown',1,null,12);await h.flush();h.advance(1.5);
  assert.deepEqual(h.fingers.get(1).handle.notes,[24]);
  assert.equal(h.audio.calls.length,0);
  assert.ok(!h.loop.events.some(e=>e.type==='threadNote'));
- h.pointer('pointerup',1,null,11);h.pause();
+ h.pointer('pointerup',1,null,12);h.pause();
 });
 
 test('lower-only harmonies remember the last vertical note and retune while held',async()=>{
@@ -351,9 +351,9 @@ test('held recording seam is bounded and settings release contacts', async () =>
 });
 test('keyboard holds couple to the chosen weft and all twelve timbres release', async () => {
   const h=harness(),canvas=h.elements.get('canvas');
-  for(let row=0;row<12;row++){
-    canvas.dispatch('keydown',{code:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'][row]});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
-    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});if(row===11)h.elements.get('clearLoop').dispatch('click');h.advance(loom.weftRelease(row)+.2);
+  for(let row=0;row<13;row++){
+    canvas.dispatch('keydown',{code:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal','Backslash'][row]});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
+    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});if(row===12)h.elements.get('clearLoop').dispatch('click');h.advance(loom.weftRelease(row)+.2);
     assert.equal(h.resonance.active.size,0);
   }h.pause();
 });
@@ -392,4 +392,15 @@ test('a fast diagonal stroke excites notes and short resonances without a hold',
   assert.ok(h.resonance.active.size>0,'texture tails remain after the sweep');
   h.elements.get('loop').dispatch('click');h.advance(4);
   assert.equal(h.resonance.active.size,0);h.pause();
+});
+
+test('TONIC brushes use the selected voice, record and stay on the lowest root in ARP',async()=>{
+ const h=harness();h.elements.get('voice').value='oud';h.elements.get('voice').dispatch('change');
+ h.pointer('pointerdown',1,10,null);await h.flush();h.pointer('pointerup',1,10,null);h.audio.calls.length=0;
+ h.elements.get('loop').dispatch('click');h.pointer('pointerdown',2,null,11);h.advance(.2);
+ assert.ok(h.audio.calls.length);assert.ok(h.audio.calls.every(n=>n.midi===48&&n.voice==='oud'));
+ assert.ok(h.loop.events.some(e=>e.type==='weave'&&e.row===11&&e.id===0));
+ h.pointer('pointerup',2,null,11);h.modes[2].dispatch('click');h.audio.calls.length=0;
+ h.pointer('pointerdown',3,null,11);h.advance(1);
+ assert.ok(h.audio.calls.length);assert.ok(h.audio.calls.every(n=>n.midi===48));h.pause();
 });
