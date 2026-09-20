@@ -1,18 +1,29 @@
-import { frequency, clamp } from './music.mjs?v=drift-10';
-import { pluckedWave } from './voices.mjs?v=drift-10';
-import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=drift-10';
+import { frequency, clamp } from './music.mjs?v=restrike-14';
+import { pluckedWave } from './voices.mjs?v=restrike-14';
+import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=restrike-14';
 
 // Coupled strings enter the existing HANABI effects bus. Each contact owns its
 // envelope, so releasing one finger never releases another finger's resonance.
 export class LoomResonance {
   constructor(audio, onPulse=()=>{}) { this.audio=audio; this.active=new Set(); this.onPulse=onPulse; this.serial=0; }
-  start(notes,row,{when=this.audio.time,level=.7,duration=Infinity,pan=0,source='live',id=0,attack=.85,voice='qanun'}={}) {
+  start(notes,row,{when=this.audio.time,level=.7,duration=Infinity,pan=0,source='live',id=0,attack=.85,voice='qanun',retrigger=false}={}) {
     const ac=this.audio.context; if(!ac) return null;
     const kind=WEFTS[row].kind,grain=['dust','mirage'].includes(kind),low=['root','drone'].includes(kind),sharedVoice=isHarmony(row)&&kind!=='drone';
     if(kind==='drone'){
       source=source==='loop'?'loop':'live';
       const held=[...this.active].find(h=>h.row===row&&h.source===source&&!h.stopping&&h.notes[0]===notes[0]);
-      if(held)return held;
+      if(held){
+        if(retrigger){
+          const t=Math.max(when,ac.currentTime),p=held.env.gain;
+          if(p.cancelAndHoldAtTime)p.cancelAndHoldAtTime(t);
+          else {p.cancelScheduledValues(t);p.setValueAtTime(held.amp,t);}
+          p.linearRampToValueAtTime(held.amp*.12,t+.012);
+          p.linearRampToValueAtTime(held.amp*1.45,t+.047);
+          p.setTargetAtTime(held.amp,t+.047,.08);
+          held.strikeTime=t;held.pressureAfter=t+.3;
+        }
+        return held;
+      }
       duration=Infinity;
     }
     const t=Math.max(when,ac.currentTime), env=ac.createGain(), stereo=ac.createStereoPanner();
@@ -66,7 +77,7 @@ export class LoomResonance {
     this.onPulse(h.id,h.row,when,h.source);
   }
   pressure(handle,amount) {
-    if(!handle || handle.stopping) return;
+    if(!handle || handle.stopping || this.audio.time<(handle.pressureAfter??0)) return;
     handle.env.gain.setTargetAtTime(handle.amp*clamp(amount,.4,1.35),this.audio.time,.2);
   }
   stop(handle,when=this.audio.time,release=null,force=false) {

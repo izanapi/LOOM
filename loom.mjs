@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs?v=drift-10';
+import { SCALES, clamp } from './music.mjs?v=restrike-14';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;

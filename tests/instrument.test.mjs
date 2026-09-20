@@ -160,7 +160,7 @@ test('latched drone stays level, does not stack on retrigger, and CLEAR stops it
  const drone=h.fingers.get(1).handle,level=drone.env.gain.value;
  h.pointer('pointerup',1,null,11);h.audio.context.advance(180);h.schedule();
  assert.equal(drone.env.gain.value,level);assert.equal(drone.stopping,false);
- for(let i=0;i<8;i++){h.pointer('pointerdown',2,null,11);h.advance(.4);h.pointer('pointerup',2,null,11);}
+ for(let i=0;i<8;i++){h.pointer('pointerdown',2,null,11);const strike=drone.strikeTime;assert.equal(strike,h.audio.time);h.advance(.4);assert.equal(drone.strikeTime,strike,'holding does not strike again');h.pointer('pointerup',2,null,11);}
  assert.equal([...h.resonance.active].filter(h=>h.row===11).length,1);
  h.elements.get('clearLoop').dispatch('click');assert.equal(h.resonance.active.size,0);h.pause();
 });

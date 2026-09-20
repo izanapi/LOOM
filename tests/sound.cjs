@@ -19,6 +19,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
      r.start(resonanceNotes(i,i%12,config),i%12,{id:i,when:.1+i*.008,duration:.8,level:.4,attack:.055,source:'brush'});
    }
    else a.play(60.5,{voice:['qanun','santur','oud'][row-14],velocity:.8,when:.1});
+   if(row===11)c.suspend(4).then(()=>{time=c.currentTime;r.start(resonanceNotes(4,row,config),row,{id:4,when:time,level:.7,retrigger:true});if(r.active.size!==1)throw Error('drone stacked');return c.resume();});
    // Render the same audio-clock echo scheduler used during live playing.
    for(time=0;time<(row===13?.75:2.3);time+=.025)r.tick();
    const out=await c.startRendering(),pcm=out.getChannelData(0);
@@ -29,7 +30,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
   }
   window.AudioContext=Original;return {metrics,samples};
  });
- for(const m of result.metrics){assert(m.peak>.002&&m.peak<.95,JSON.stringify(m));assert(m.body>.0003,JSON.stringify(m));if(m.row===11)assert(m.tail>m.body*.95&&m.tail<m.body*1.05,JSON.stringify(m));else if(m.row!==13)assert(m.tail<m.body*.15,JSON.stringify(m));}
+ for(const m of result.metrics){assert(m.peak>.002&&m.peak<.95,JSON.stringify(m));assert(m.body>.0003,JSON.stringify(m));if(m.row===11)assert(m.peak>.045&&m.tail>m.body*.95&&m.tail<m.body*1.05,JSON.stringify(m));else if(m.row!==13)assert(m.tail<m.body*.15,JSON.stringify(m));}
  for(const row of [2,4,6,10,11])assert.ok(result.metrics[row].sustain>0.00003,JSON.stringify(result.metrics[row]));
  const data=result.samples.flat(),buf=Buffer.alloc(44+data.length*2);buf.write('RIFF');buf.writeUInt32LE(buf.length-8,4);buf.write('WAVEfmt ',8);buf.writeUInt32LE(16,16);buf.writeUInt16LE(1,20);buf.writeUInt16LE(1,22);buf.writeUInt32LE(44100,24);buf.writeUInt32LE(88200,28);buf.writeUInt16LE(2,32);buf.writeUInt16LE(16,34);buf.write('data',36);buf.writeUInt32LE(data.length*2,40);data.forEach((x,i)=>buf.writeInt16LE(Math.round(Math.max(-1,Math.min(1,x))*32767),44+i*2));fs.writeFileSync('artifacts/resonance-check.wav',buf);
  console.log(JSON.stringify(result.metrics,null,2));

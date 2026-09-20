@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=drift-10';
-import { InstrumentAudio } from './audio.mjs?v=drift-10';
-import { VOICES } from './voices.mjs?v=drift-10';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=drone-left-13';
-import { LoomResonance } from './resonance.mjs?v=drift-10';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=restrike-14';
+import { InstrumentAudio } from './audio.mjs?v=restrike-14';
+import { VOICES } from './voices.mjs?v=restrike-14';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=restrike-14';
+import { LoomResonance } from './resonance.mjs?v=restrike-14';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -127,7 +127,7 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const chosen=isDrone(row)?[0]:isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
     const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
-    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:isDrone(row)?0:(id/13-.5)*.9});
+    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',retrigger:true,pan:isDrone(row)?0:(id/13-.5)*.9});
     const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
     visualQueue.push({time:when,id,strength:.38+velocity*.2,row,y:weftY(row,geometry),x:originX,fromLoop:false,brush:true});
@@ -198,7 +198,7 @@ function schedule(){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
-          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:isDrone(e.row)?0:(e.id/13-.5)*.9});
+          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',retrigger:e.gesture==='brush',pan:isDrone(e.row)?0:(e.id/13-.5)*.9});
           visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:isDrone(e.row)?droneX(geometry):e.x==null?null:e.x*geometry.width,fromLoop:true});
         }else emit(e.id,e.velocity*.8,e.brightness,when,'loop',e.interval||0,geometry.top+e.y*(geometry.bottom-geometry.top));
       }
