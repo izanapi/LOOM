@@ -23,5 +23,6 @@ header{min-height:36px}.header-actions button{min-height:36px}.tuning{margin-top
 @media(max-height:580px) and (orientation:landscape){.stage{min-height:250px;margin:0}.brand h1 span{display:none}#touchState{font-size:8px;max-width:170px}.loom-strip{gap:4px}#hint{font-size:8px}}
 
 .stage-note{left:0;right:0;top:5px;justify-content:center;font-size:10px}
-canvas.pointer-playing:focus-visible{outline:none}
+#canvas{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+#canvas.pointer-playing:focus,#canvas.pointer-playing:focus-visible{outline:none;box-shadow:none}
 @media(max-width:500px) and (orientation:portrait){.tuning label:first-child{width:20%}.tuning .scale-select{width:46%}.tuning label:last-child{width:34%}.tuning select{font-size:13px}}

@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs';
-import { InstrumentAudio } from './audio.mjs';
-import { VOICES } from './voices.mjs';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes } from './loom.mjs';
-import { LoomResonance } from './resonance.mjs';
+import { NOTES, SCALES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=corner-3';
+import { InstrumentAudio } from './audio.mjs?v=corner-3';
+import { VOICES } from './voices.mjs?v=corner-3';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes } from './loom.mjs?v=corner-3';
+import { LoomResonance } from './resonance.mjs?v=corner-3';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();

@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs';
+import { SCALES, clamp } from './music.mjs?v=corner-3';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
