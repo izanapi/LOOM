@@ -1,12 +1,12 @@
-import { frequency, clamp } from './music.mjs?v=root-8';
-import { pluckedWave } from './voices.mjs?v=root-8';
-import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=root-8';
+import { frequency, clamp } from './music.mjs?v=single-9';
+import { pluckedWave } from './voices.mjs?v=single-9';
+import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=single-9';
 
 // Coupled strings enter the existing HANABI effects bus. Each contact owns its
 // envelope, so releasing one finger never releases another finger's resonance.
 export class LoomResonance {
   constructor(audio, onPulse=()=>{}) { this.audio=audio; this.active=new Set(); this.onPulse=onPulse; this.serial=0; }
-  start(notes,row,{when=this.audio.time,level=.7,duration=Infinity,pan=0,source='live',id=0,attack=.85,voice='qanun',fret=0}={}) {
+  start(notes,row,{when=this.audio.time,level=.7,duration=Infinity,pan=0,source='live',id=0,attack=.85,voice='qanun'}={}) {
     const ac=this.audio.context; if(!ac) return null;
     const kind=WEFTS[row].kind,grain=['dust','mirage'].includes(kind),low=['root','drone'].includes(kind),sharedVoice=isHarmony(row)&&kind!=='drone';
     const t=Math.max(when,ac.currentTime), env=ac.createGain(), stereo=ac.createStereoPanner();
@@ -16,7 +16,7 @@ export class LoomResonance {
     attack=Math.min(sharedVoice?.035:attack,duration*.5);
     env.gain.setValueAtTime(.0001,t); env.gain.linearRampToValueAtTime(amp,t+attack);
     const nodes=[env,filter,stereo], sources=[];
-    const handle={id,row,source,t,env,amp,attack,notes,nodes,sources,level,voice,sharedVoice,pan,fret,end:t+duration,stopping:false,next:t+.08,serial:this.serial++};
+    const handle={id,row,source,t,env,amp,attack,notes,nodes,sources,level,voice,sharedVoice,pan,end:t+duration,stopping:false,next:t+.08,serial:this.serial++};
     if(sharedVoice){this.soundHarmony(handle,t);handle.next=t+1.2;}
     if(kind!=='echo'&&!sharedVoice) notes.forEach((note,i)=>{
       const f=frequency(note); if(f>ac.sampleRate*.43) return;
@@ -35,7 +35,7 @@ export class LoomResonance {
         osc=ac.createBufferSource(); osc.buffer=buffer; osc.loop=true;
       } else {
         osc=ac.createOscillator(); osc.type=low||kind==='silk'?'triangle':'sine'; osc.frequency.value=f;
-        osc.detune.value=(i-1)*2.2;
+        osc.detune.value=kind==='drone'?0:(i-1)*2.2;
       }
       const gain=ac.createGain();gain.gain.value=i? .6:1;
       if(kind==='shimmer'||kind==='silk'){

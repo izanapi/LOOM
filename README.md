@@ -26,13 +26,15 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 | ECHO | Neighboring notes returning at dotted-eighth intervals |
 | ROOT | Last vertical note and its lower octave |
 | MIRAGE | Reversed, windowed string grains |
-| DRONE | Independent KEY root in the C1–B1 register, with scale frets rising an octave to the right |
+| DRONE | One independent KEY root in the C1–B1 register across the entire string; no frets or octave doubling |
 
 Texture and pitch threads alternate within the same lower band. FIFTH and HARM deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
 
 ## LOOM tunings and colors
 
 Hijaz, Hijazkar, Nahawand, Nikriz, Kurd, Rast and Bayati lead the scale picker, alongside western and pentatonic options. Rast and Bayati use fixed 24-tone approximations. These are exploratory **maqam-inspired pitch sets**, not full maqam performance models: melodic development, direction and regional intonation are not modeled. The initial Hijaz uses a Nahawand upper tetrachord, and Nahawand uses its ascending leading-tone version. Sources: [MaqamWorld Hijaz](https://www.maqamworld.com/en/maqam/hijaz.php), [Rast](https://www.maqamworld.com/en/maqam/rast.php), [Bayati](https://www.maqamworld.com/en/maqam/bayati.php), [Nikriz](https://www.maqamworld.com/en/maqam/nikriz.php). Note labels such as E3↓50 mean 50 cents below E3. Legacy Japanese tuning definitions remain internally for compatibility, but are excluded from LOOM's picker and dice.
+
+New exploratory options: **Jan Hammer**, defined here as Mixolydian without its third (1, 2, 4, 5, 6, ♭7; C D F G A B♭); **Egyptian** suspended pentatonic; **Lydian dominant**; **Hungarian minor**; and **Whole tone**. DRONE remains one sustained root even in ARP. Scale reference: [Mixolydian hexatonic](https://www.pianoscales.org/mixolydian-hexatonic.html).
 
 Qanun uses slightly detuned plucked courses; Santur adds a bright hammer-like attack; Oud has a short wooden body. They are synthesized interpretations, not samples. Existing voices remain available.
 

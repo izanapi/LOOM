@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=root-8';
-import { InstrumentAudio } from './audio.mjs?v=root-8';
-import { VOICES } from './voices.mjs?v=root-8';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneFret, droneX } from './loom.mjs?v=root-8';
-import { LoomResonance } from './resonance.mjs?v=root-8';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=single-9';
+import { InstrumentAudio } from './audio.mjs?v=single-9';
+import { VOICES } from './voices.mjs?v=single-9';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=single-9';
+import { LoomResonance } from './resonance.mjs?v=single-9';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -59,7 +59,7 @@ function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x
   if(!isDrone(row))strings[id].energy=Math.max(strings[id].energy,strength);
   if(row!==null) rows[row].energy=Math.max(rows[row].energy,strength);
   pulses.push({id,row,y:row!==null?weftY(row,geometry):y,x,age:0,strength,fromLoop});if(pulses.length>140)pulses.shift();
-  const pitch=isDrone(row)?resonanceNotes(0,row,config,droneFret(x,geometry,config.scale))[0]:midi(id);
+  const pitch=isDrone(row)?resonanceNotes(0,row,config)[0]:midi(id);
   $('noteReadout').textContent=noteName(pitch)+(row!==null?' × '+WEFTS[row].name:'')+(fromLoop?' / LOOP':'');lastNoteTime=frameTime;
 }
 function setLoopState(state){
@@ -109,11 +109,12 @@ function verticalNote(id,velocity,brightness,when,source,y,layer=warpLayer(y,geo
   intervals.forEach((interval,i)=>emit(id,velocity*levels[i]/normal,brightness,when,source,interval,y));
 }
 function anchorFor(f){return isDrone(f.row)?0:isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
-function threadNote(id,row,index,velocity,when,source='arp',fret=0){
-  const notes=resonanceNotes(id,row,config,fret),note=notes[index%notes.length];
+function threadNote(id,row,index,velocity,when,source='arp'){
+  if(isDrone(row))return;
+  const notes=resonanceNotes(id,row,config),note=notes[index%notes.length];
   audio.play(note,{voice:config.voice,velocity,brightness:.55,when,pan:isDrone(row)?0:(id/13-.5)*.9});
-  if(source==='arp')record({type:'threadNote',id,row,index,velocity,fret},when);
-  visualQueue.push({time:when,id,row,strength:velocity+.15,y:weftY(row,geometry),x:isDrone(row)?droneX(fret,geometry,config.scale):null,fromLoop:source==='loop'});
+  if(source==='arp')record({type:'threadNote',id,row,index,velocity},when);
+  visualQueue.push({time:when,id,row,strength:velocity+.15,y:weftY(row,geometry),x:isDrone(row)?droneX(geometry):null,fromLoop:source==='loop'});
 }
 function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   if(row===null||!audio.context||audio.time-brushAt[row]<.12)return;
@@ -123,12 +124,11 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
   const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
   if(!seeds.length)seeds.push(0,4);
-  const fret=isDrone(row)?droneFret(originX,geometry,config.scale):0;
   const chosen=isDrone(row)?[0]:isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
     const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
-    resonance.start(resonanceNotes(id,row,config,fret),row,{id,fret,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:isDrone(row)?0:(id/13-.5)*.9});
-    const event=record({type:'weave',gesture:'brush',id,row,fret,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
+    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:isDrone(row)?0:(id/13-.5)*.9});
+    const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
     visualQueue.push({time:when,id,strength:.38+velocity*.2,row,y:weftY(row,geometry),x:originX,fromLoop:false,brush:true});
   });
@@ -137,9 +137,9 @@ function couple(finger,when=audio.time){
   if(finger.row===null||finger.handle)return;
   const id=anchorFor(finger);
   finger.coupled=true;finger.joined=when;
-  finger.handle=resonance.start(resonanceNotes(id,finger.row,config,finger.fret??0),finger.row,{id,fret:finger.fret??0,voice:config.voice,level:finger.velocity,pan:isDrone(finger.row)?0:(id/13-.5)*.9});
-  finger.record=record({type:'weave',id,row:finger.row,fret:finger.fret??0,velocity:finger.velocity,duration:1},when);
-  visualize(id,.75,false,finger.row,undefined,isDrone(finger.row)?droneX(finger.fret??0,geometry,config.scale):null);
+  finger.handle=resonance.start(resonanceNotes(id,finger.row,config),finger.row,{id,voice:config.voice,level:finger.velocity,pan:isDrone(finger.row)?0:(id/13-.5)*.9});
+  finger.record=record({type:'weave',id,row:finger.row,velocity:finger.velocity,duration:1},when);
+  visualize(id,.75,false,finger.row,undefined,isDrone(finger.row)?droneX(geometry):null);
 }
 function uncouple(finger,release=null){
   if(finger.record){
@@ -181,7 +181,7 @@ function schedule(){
     if(config.mode==='arp'&&step%2===0){
       for(const f of fingers.values())if(f.id!==null||f.row!==null){
         const index=[0,1,2,1][Math.floor(step/2)%4];
-        if(f.row!==null)threadNote(anchorFor(f),f.row,index,f.velocity*.55,when,'arp',f.fret??0);
+        if(f.row!==null)threadNote(anchorFor(f),f.row,index,f.velocity*.55,when,'arp');
         else verticalNote(wovenChord(f.id)[index],f.velocity*.65,f.brightness??.6,when,'arp',f.y??geometry.top,f.layer??0);
       }
     }
@@ -193,13 +193,13 @@ function schedule(){
     if(loop.state==='playing'||(loop.state==='recording'&&step>=loop.startStep+LOOP_STEPS)){
       const slot=((step-loop.startStep)%LOOP_STEPS+LOOP_STEPS)%LOOP_STEPS;
       for(const e of loop.events)if(e.step===slot){
-        if(e.type==='threadNote')threadNote(e.id,e.row,e.index,e.velocity*.8,when,'loop',e.fret??0);
+        if(e.type==='threadNote')threadNote(e.id,e.row,e.index,e.velocity*.8,when,'loop');
         else if(e.type==='weave'){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
-          resonance.start(resonanceNotes(e.id,e.row,config,e.fret??0),e.row,{id:e.id,fret:e.fret??0,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:isDrone(e.row)?0:(e.id/13-.5)*.9});
-          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:isDrone(e.row)?droneX(e.fret??0,geometry,config.scale):e.x==null?null:e.x*geometry.width,fromLoop:true});
+          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:isDrone(e.row)?0:(e.id/13-.5)*.9});
+          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:isDrone(e.row)?droneX(geometry):e.x==null?null:e.x*geometry.width,fromLoop:true});
         }else emit(e.id,e.velocity*.8,e.brightness,when,'loop',e.interval||0,geometry.top+e.y*(geometry.bottom-geometry.top));
       }
     }
@@ -214,7 +214,7 @@ canvas.addEventListener('pointerdown',e=>{
   const p=eventPoint(e),hit=intersection(p,geometry);if(fingers.size>=10)return;
   canvas.classList.add('pointer-playing');
   if(hit)startAudio();canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});
-  const f={...p,id:null,row:null,...hit,fret:hit&&isDrone(hit.row)?droneFret(p.x,geometry,config.scale):0,layer:warpLayer(p.y,geometry),velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
+  const f={...p,id:null,row:null,...hit,layer:warpLayer(p.y,geometry),velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
   fingers.set(e.pointerId,f);
   if(f.id!==null)pluck(f.id,f.velocity,f.brightness,p.y);
   else if(f.row!==null)brushWeft(f.row,f.velocity,null,0,p.x);
@@ -241,16 +241,14 @@ canvas.addEventListener('pointermove',e=>{
       wefts.forEach((crossing,i)=>brushWeft(crossing.row,velocity,crossing.id,i*.022,crossing.x));
     }
     if(!hit){uncouple(f);Object.assign(f,p,{id:null,row:null,started:audio.time,coupled:false});continue;}
-    const fret=isDrone(hit.row)?droneFret(p.x,geometry,config.scale,isDrone(f.row)?f.fret:null):0;
-    const changed=hit.id!==f.id||hit.row!==f.row||fret!==f.fret;
-    if(isDrone(hit.row)&&isDrone(f.row)&&fret!==f.fret&&!f.coupled)brushWeft(hit.row,velocity,null,0,p.x);
+    const changed=hit.id!==f.id||hit.row!==f.row;
     if(changed&&f.coupled){
-      uncouple(f,isDrone(hit.row)&&isDrone(f.row)?.3:null);
+      uncouple(f);
       warps.forEach((crossing,i)=>pluck(crossing.id,velocity*.65,brightnessAt(p),crossing.y,audio.time+i*.008));
       wefts.forEach((crossing,i)=>{if(crossing.row!==hit.row)brushWeft(crossing.row,velocity*.65,crossing.id,i*.022,crossing.x);});
     }
     if(f.id===null&&f.row===null)f.started=audio.time;
-    Object.assign(f,p,hit,{velocity,layer,fret,brightness:brightnessAt(p)});
+    Object.assign(f,p,hit,{velocity,layer,brightness:brightnessAt(p)});
     if(changed&&f.coupled)couple(f);
   }
 });
@@ -413,19 +411,11 @@ function draw(ms){
     }
     ctx.fillStyle=rowColor(row,e>.1?.95:.75);ctx.textAlign='left';ctx.font=`${Math.min(9,g.dy*.85)}px ui-monospace,monospace`;ctx.fillText(WEFTS[row].name,7,y+3);
     for(const x of [start,end]){ctx.strokeStyle=rowColor(row,.45);ctx.lineWidth=1;line(x,y-3,x,y+4);}
-    if(isDrone(row)){
-      const count=SCALES[config.scale].intervals.length+1,step=(end-g.left)/(count-1);
-      ctx.textAlign='center';ctx.font='8px ui-monospace,monospace';
-      for(let fret=0;fret<count;fret++){
-        ctx.fillStyle=paletteColor(config.palette,fret/(count-1),80,.8);
-        ctx.fillText(fret===0?'ROOT':fret===count-1?'+8':String(fret+1),droneX(fret,g,config.scale),y+13);
-        if(fret){ctx.strokeStyle=paletteColor(config.palette,fret/(count-1),80,.65);ctx.lineWidth=1;line(g.left+(fret-1)*step,y-4,g.left+(fret-1)*step,y+4);}
-      }
-    }
+
   }
   // Contact knots: white = current fingers; a fine colored ring = recorded hand.
   for(const h of active){
-    const x=isDrone(h.row)?droneX(h.fret??0,g,config.scale):warpX(h.id,g),y=weftY(h.row,g),a=strength(h);
+    const x=isDrone(h.row)?droneX(g):warpX(h.id,g),y=weftY(h.row,g),a=strength(h);
     ctx.strokeStyle=h.source==='loop'?rowColor(h.row,.65):`rgba(224,255,245,${.3+a})`;
     ctx.lineWidth=h.source==='loop'?.8:1.2;ctx.beginPath();ctx.arc(x,y,4+a*3,0,Math.PI*2);ctx.stroke();
     ctx.fillStyle=rowColor(h.row,.4+a*.5);ctx.beginPath();ctx.arc(x,y,1.7,0,Math.PI*2);ctx.fill();

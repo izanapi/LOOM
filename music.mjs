@@ -1,4 +1,4 @@
-import { VOICES } from './voices.mjs?v=root-8';
+import { VOICES } from './voices.mjs?v=single-9';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {
@@ -9,6 +9,11 @@ export const SCALES = {
   kurd: { name: 'Kurd', intervals: [0, 1, 3, 5, 7, 8, 10] },
   rast: { name: 'Rast · ¼', intervals: [0, 2, 3.5, 5, 7, 9, 10.5] },
   bayati: { name: 'Bayati · ¼', intervals: [0, 1.5, 3, 5, 7, 8, 10] },
+  janHammer: { name: 'Jan Hammer', intervals: [0, 2, 5, 7, 9, 10] },
+  egyptian: { name: 'Egyptian', intervals: [0, 2, 5, 7, 10] },
+  lydianDominant: { name: 'Lydian dominant', intervals: [0, 2, 4, 6, 7, 9, 10] },
+  hungarianMinor: { name: 'Hungarian minor', intervals: [0, 2, 3, 6, 7, 8, 11] },
+  wholeTone: { name: 'Whole tone', intervals: [0, 2, 4, 6, 8, 10] },
   hirajoshi: { name: 'Hirajoshi', intervals: [0, 2, 3, 7, 8] },
   pentatonic: { name: 'Major pentatonic', intervals: [0, 2, 4, 7, 9] },
   minorPent: { name: 'Minor pentatonic', intervals: [0, 3, 5, 7, 10] },

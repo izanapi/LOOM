@@ -76,12 +76,13 @@ test('random patches change musical settings without changing tempo, gain or loo
     assert.equal(patch.bpm, undefined); assert.equal(patch.volume, undefined);
     assert.ok(SCALES[patch.scale]);
   }
-  assert.equal(Object.keys(SCALES).length, 21);
+  assert.equal(Object.keys(SCALES).length, 26);
 });
 
 test('curated scales retain a tonic/fifth and omit the abrasive random choices', () => {
-  for (const scale of Object.values(SCALES)) assert.ok(scale.intervals.includes(0) && scale.intervals.includes(7));
-  for (const name of ['diminishedHW','diminishedWH','chromatic','locrian','wholeTone']) assert.equal(SCALES[name], undefined);
+  for (const [name,scale] of Object.entries(SCALES)) assert.ok(scale.intervals.includes(0) && (name==='wholeTone'||scale.intervals.includes(7)));
+  assert.deepEqual(SCALES.janHammer.intervals,[0,2,5,7,9,10]);
+  for (const name of ['diminishedHW','diminishedWH','chromatic','locrian']) assert.equal(SCALES[name], undefined);
   for (const name of ['hirajoshi','dorian','insen','ritusen','kumoi','ryukyu']) assert.ok(SCALES[name]);
 });
 test('accompaniment is sparse, varies, and stays on valid strings in every scale', () => {

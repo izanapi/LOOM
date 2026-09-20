@@ -1,25 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCALES, noteName, frequency, LOOM_SCALES, PALETTES, paletteColor } from '../music.mjs';
-import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals,droneFret,droneX } from '../loom.mjs';
-test('drone frets preserve root and quarter tones independently of warp ID',()=>{
- const g=loomGeometry(390,500);
- for(const scale of ['hijaz','rast','bayati','pentatonic']){
-  const c={root:3,scale,octave:1},n=SCALES[scale].intervals.length;
-  for(let f=0;f<=n;f++){
-   assert.equal(droneFret(droneX(f,g,scale),g,scale),f);
-   assert.deepEqual(resonanceNotes(0,11,c,f),resonanceNotes(13,11,c,f));
-   assert.equal(resonanceNotes(0,11,c,f)[0],27+(f===n?12:SCALES[scale].intervals[f]));
-  }
- }
+import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals,droneX } from '../loom.mjs';
+test('drone is exactly one KEY root independent of scale, warp and octave',()=>{
+ for(const scale of Object.keys(SCALES))for(let root=0;root<12;root++)for(const octave of [-1,0,1])for(const id of [0,7,13])
+  assert.deepEqual(resonanceNotes(id,11,{root,scale,octave}),[24+root]);
 });
-test('the entire un-crossed drone arm is root, even when returning from a high fret',()=>{
+test('the entire drone string avoids triggering crossing warps',()=>{
  for(const [width,height] of [[320,250],[390,500],[900,660]]){
   const g=loomGeometry(width,height);
-  for(let x=g.weftLeft;x<=g.left;x+=.5){
-   assert.equal(droneFret(x,g,'rast'),0);assert.equal(droneFret(x,g,'rast',7),0);
-  }
-  assert.equal(droneFret(g.right+10,g,'rast'),7);
+  for(let x=g.weftLeft;x<=g.right+10;x+=.5)assert.deepEqual(intersection({x,y:weftY(11,g)},g),{id:null,row:11});
  }
 });
 test('every string palette has a continuous multi-stop gradient',()=>{

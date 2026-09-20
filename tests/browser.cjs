@@ -9,8 +9,8 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.__audioContext=this;}};
  });
  await page.goto(process.argv[2]||'http://127.0.0.1:8071');await page.waitForTimeout(300);
- assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=root-8')));
- const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=root-8');return m.loomGeometry(390,500)});
+ assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=single-9')));
+ const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=single-9');return m.loomGeometry(390,500)});
  assert.ok(geometry.left>180&&geometry.weftTop>250,'Strings form a mirrored L');
  fs.mkdirSync('artifacts',{recursive:true});
  await page.screenshot({path:'artifacts/loom-mobile.png'});
@@ -73,7 +73,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  await page.screenshot({path:'artifacts/loom-horizontal-arp.png'});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  await page.locator('[data-mode="pluck"]').click();
- // The independent bass starts at KEY, then climbs through scale frets.
+ // The independent bass remains at KEY throughout the string.
  await page.keyboard.press('Escape');
  const bassX=fret=>box.x+(fret===0?(54+left)/2:left+(fret-.5)*(right+10-left)/7);
  await page.mouse.move(bassX(0),point(0,11).y);await page.mouse.down();await page.waitForTimeout(550);
@@ -81,8 +81,12 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  await page.mouse.move(box.x+left-2,point(0,11).y,{steps:5});await page.waitForTimeout(150);
  assert.match(await page.locator('#noteReadout').textContent(),/^C1 × DRONE/);
  await page.mouse.move(bassX(7),point(0,11).y,{steps:14});await page.waitForTimeout(250);
- assert.match(await page.locator('#noteReadout').textContent(),/^C2 × DRONE/);
- await page.screenshot({path:'artifacts/loom-drone-frets.png'});await page.mouse.up();
+ assert.match(await page.locator('#noteReadout').textContent(),/^C1 × DRONE/);
+ await page.screenshot({path:'artifacts/loom-drone.png'});await page.mouse.up();
+ for(const scale of ['janHammer','egyptian','lydianDominant','hungarianMinor','wholeTone']){
+  await page.locator('#scale').selectOption(scale);await page.mouse.click(point(3,0).x,point(3,0).y);
+ }
+ await page.locator('#scale').selectOption('rast');
  await page.keyboard.press('Escape');
  await page.locator('#settingsOpen').click();
  const backgrounds=new Set(),panelColors=new Set();
