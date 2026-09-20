@@ -22,12 +22,12 @@ test('plucked-string synthesis is bounded, decays, and stays tuned across regist
     assert.ok(Math.abs(sampleRate/bestLag/frequency-1)<.015, `pitch ${frequency}: ${sampleRate/bestLag}`);
   }
 });
-test('eight voices have contrasting articulation and all are reachable by dice', () => {
-  assert.equal(Object.keys(VOICES).length, 8);
+test('eleven voices have contrasting articulation and all are reachable by dice', () => {
+  assert.equal(Object.keys(VOICES).length, 11);
   assert.ok(VOICES.orbit.attack > VOICES.chip.attack * 100);
   assert.ok(VOICES.orbit.length > VOICES.chip.length * 5);
   assert.ok(VOICES.bamboo.attack > VOICES.koto.attack * 10);
   const reached = new Set();
   for (let i=0;i<100;i++) reached.add(randomPatch({root:0,scale:'insen',voice:'kalimba',palette:'aurora'},()=>i/100).voice);
-  assert.equal(reached.size,7); for(const voice of reached) assert.ok(VOICES[voice]);
+  assert.equal(reached.size,10); for(const voice of reached) assert.ok(VOICES[voice]);
 });

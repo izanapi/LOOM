@@ -41,7 +41,7 @@ class TracedAudio extends InstrumentAudio {
   play(midi, options) { this.calls.push({ midi, ...options }); super.play(midi, options); }
 }
 class Element {
-  constructor(id = '') { this.id = id; this.listeners = {}; this.style = {}; this.dataset = {}; this.value = ''; this.classList = { toggle() {}, add() {}, remove() {} }; }
+  constructor(id = '') { this.id = id; this.listeners = {}; this.style = {setProperty() {}}; this.dataset = {}; this.value = ''; this.classList = { toggle() {}, add() {}, remove() {} }; }
   addEventListener(type, callback) { (this.listeners[type] ??= []).push(callback); }
   dispatch(type, data = {}) { const event = { target: this, preventDefault() {}, ...data }; for (const callback of this.listeners[type] || []) callback(event); }
   append(child) { (this.children ??= []).push(child); } setAttribute() {} setPointerCapture() {}
@@ -55,7 +55,7 @@ function harness() {
   const drawing = new Proxy({}, { get: (_, name) => name === 'createRadialGradient' || name === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {} });
   elements.get('canvas').getContext = () => drawing;
   const modes = ['pluck', 'chord', 'arp'].map(mode => { const element = new Element(); element.dataset.mode = mode; return element; });
-  const document = new Element(); document.hidden = false;
+  const document = new Element(); document.hidden = false; document.documentElement = new Element();
   document.getElementById = id => { assert.ok(elements.has(id), `Missing HTML id: ${id}`); return elements.get(id); };
   document.createElement = () => new Element(); document.querySelectorAll = () => modes;
   let now = 1000, frame;
@@ -99,7 +99,7 @@ test('two-bar loop records, repeats, transposes, pauses, resumes and clears', as
   h.advance(5.3); assert.equal(h.loop.state, 'playing'); assert.ok(h.audio.calls.length > 2);
   h.elements.get('root').value = '2'; h.elements.get('root').dispatch('change');
   const count = h.audio.calls.length; h.advance(5.4);
-  assert.ok(h.audio.calls.slice(count).some(call => call.midi === music.midiForString(2, 2, 'insen')));
+  assert.ok(h.audio.calls.slice(count).some(call => call.midi === music.midiForString(2, 2, 'hijaz')));
   h.elements.get('loop').dispatch('click'); assert.equal(h.loop.state, 'paused'); const stopped = h.audio.calls.length;
   h.advance(2); assert.equal(h.audio.calls.length, stopped);
   h.elements.get('loop').dispatch('click'); h.advance(.5); assert.equal(h.loop.state, 'playing');
@@ -131,8 +131,27 @@ test('look-ahead scheduling does not cut off the final fraction of the recording
   h.audio.context.currentTime = end + .01; h.schedule(); assert.equal(h.loop.state, 'playing'); h.pause();
 });
 
-test('Insen is the actual initial tuning and UI selection', () => {
-  const h = harness(); assert.equal(h.config.scale, 'insen'); assert.equal(h.elements.get('scale').value, 'insen');
+test('Hijaz is the actual initial tuning and UI selection', () => {
+  const h = harness(); assert.equal(h.config.scale, 'hijaz'); assert.equal(h.elements.get('scale').value, 'hijaz');
+  assert.equal(h.config.voice,'qanun');
+});
+
+test('chord mode records three scale strings including quarter tones and replays once',async()=>{
+  const h=harness();h.modes[1].dispatch('click');
+  h.elements.get('scale').value='rast';h.elements.get('scale').dispatch('change');
+  h.elements.get('loop').dispatch('click');h.pointer('pointerdown',1,0,null);await h.flush();h.pointer('pointerup',1,0,null);
+  assert.deepEqual(h.audio.calls.map(n=>n.midi),[48,51.5,55]);
+  assert.equal(h.loop.events.length,3);h.advance(5.5);
+  assert.equal(h.loop.state,'playing');assert.equal(h.loop.events.length,3);h.pause();
+});
+test('held arpeggios follow the clock, record, weave and stop on release',async()=>{
+  const h=harness();h.modes[2].dispatch('click');h.elements.get('loop').dispatch('click');
+  h.pointer('pointerdown',1,2,10);await h.flush();h.advance(1.4);
+  assert.ok(new Set(h.audio.calls.map(n=>n.midi)).size>=3);
+  assert.ok(h.loop.events.filter(e=>e.type==='pluck').length>=4);
+  assert.equal(h.fingers.get(1).handle.row,10);
+  h.pointer('pointerup',1,2,10);h.advance(.15);const count=h.audio.calls.length;h.advance(.8);
+  assert.equal(h.audio.calls.length,count);h.modes[0].dispatch('click');assert.equal(h.config.mode,'pluck');h.pause();
 });
 
 
@@ -140,7 +159,7 @@ test('dice updates all corresponding controls and preserves recorded loop and mi
   const h = harness(); h.elements.get('loop').dispatch('click'); await h.flush(); h.pointer('pointerdown', 1, 2);
   const events = JSON.stringify(h.loop.events), bpm = h.config.bpm, volume = h.audio.settings.volume;
   h.elements.get('randomize').dispatch('click');
-  assert.notEqual(h.config.scale, 'insen'); assert.notEqual(h.config.root, 0);
+  assert.notEqual(h.config.scale, 'hijaz'); assert.notEqual(h.config.root, 0);
   for (const key of ['root','scale','voice','palette']) assert.equal(h.elements.get(key).value, String(h.config[key]));
   assert.equal(h.config.bpm, bpm); assert.equal(h.audio.settings.volume, volume); assert.equal(JSON.stringify(h.loop.events), events);
   for (const id of ['echo','hall','volume']) { h.elements.get(id).value = '42'; h.elements.get(id).dispatch('input'); assert.equal(h.audio.settings[id], 42); }
@@ -156,8 +175,8 @@ test('interface is English-only and the three mix sliders live on the main surfa
 });
 
 
-test('Aurora is selected both in the config and settings control', () => {
-  const h = harness(); assert.equal(h.config.palette, 'aurora'); assert.equal(h.elements.get('palette').value, 'aurora');
+test('Desert is selected both in the config and settings control', () => {
+  const h = harness(); assert.equal(h.config.palette, 'desert'); assert.equal(h.elements.get('palette').value, 'desert');
 });
 test('recording automatically clicks for eight beats and stops without changing manual preference', async () => {
   const h = harness(); h.elements.get('loop').dispatch('click'); h.pointer('pointerdown', 1, 2); h.pointer('pointerup', 1, 2); await h.flush();
@@ -245,10 +264,10 @@ test('held recording seam is bounded and settings release contacts', async () =>
   const event=h.loop.events.find(e=>e.type==='weave');assert.ok(event.step+event.duration<=32);
   h.elements.get('settingsOpen').dispatch('click');assert.equal(h.fingers.size,0);h.pause();assert.equal(h.resonance.active.size,0);
 });
-test('keyboard holds couple to the chosen weft and all six timbres release', async () => {
+test('keyboard holds couple to the chosen weft and all twelve timbres release', async () => {
   const h=harness(),canvas=h.elements.get('canvas');
-  for(let row=0;row<6;row++){
-    canvas.dispatch('keydown',{code:'Digit'+(row+1)});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
+  for(let row=0;row<12;row++){
+    canvas.dispatch('keydown',{code:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'][row]});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
     assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});h.advance(.8);
     assert.equal(h.resonance.active.size,0);
   }h.pause();

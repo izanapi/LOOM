@@ -1,14 +1,20 @@
-import { SCALES, clamp } from './music.mjs?v=corner-3';
+import { SCALES, clamp } from './music.mjs?v=desert-4';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
 export const WEFTS = [
-  { name: 'HARM', detail: 'upper partials', hue: 184 },
-  { name: 'BLOOM', detail: 'woven harmony', hue: 161 },
-  { name: 'FIFTH', detail: 'open resonance', hue: 147 },
-  { name: 'DUST', detail: 'grains of string', hue: 38 },
-  { name: 'ECHO', detail: 'returning thread', hue: 208 },
-  { name: 'ROOT', detail: 'low drone', hue: 25 },
+  { name: 'BLOOM', kind:'bloom', detail: 'opening swell' },
+  { name: 'HARM', kind:'harm', detail: 'upper partials' },
+  { name: 'DUST', kind:'dust', detail: 'scattered string grains' },
+  { name: 'FIFTH', kind:'fifth', detail: 'open fifth' },
+  { name: 'SILK', kind:'silk', detail: 'soft bowed shimmer' },
+  { name: 'THIRD', kind:'third', detail: 'scale harmony' },
+  { name: 'SHIMMER', kind:'shimmer', detail: 'trembling high light' },
+  { name: 'OCTAVE', kind:'octave', detail: 'double course' },
+  { name: 'ECHO', kind:'echo', detail: 'returning neighbors' },
+  { name: 'ROOT', kind:'root', detail: 'low tonic drone' },
+  { name: 'MIRAGE', kind:'mirage', detail: 'reversed string grains' },
+  { name: 'PEDAL', kind:'pedal', detail: 'tonic and fifth below' },
 ];
 export function loomGeometry(width, height) {
   const left = width * .47, right = width - (width < 500 ? 22 : 52);
@@ -59,12 +65,13 @@ export function degreeMidi(degree, config) {
 }
 export function resonanceNotes(id, row, config) {
   const base=degreeMidi(id,config), tonic=degreeMidi(0,config);
-  return [
-    [base+12,base+19,base+24],
-    [base,degreeMidi(id+2,config),degreeMidi(id+4,config)],
-    [base,base+7,base+12],
-    [base,base+12],
-    [base,degreeMidi(id+1,config),base+12],
-    [tonic-12,base-12],
-  ][row];
+  return {
+    bloom:[base,degreeMidi(id+2,config),degreeMidi(id+4,config)],
+    harm:[base+12,base+19,base+24], dust:[base,base+12], fifth:[base,base+7],
+    silk:[base,degreeMidi(id+4,config)], third:[base,degreeMidi(id+2,config)],
+    shimmer:[base+12,base+24], octave:[base,base+12],
+    echo:[base,degreeMidi(id+1,config),base+12], root:[tonic-12,base-12],
+    mirage:[base,degreeMidi(id-1,config)+12], pedal:[tonic-12,tonic-5],
+  }[WEFTS[row].kind];
 }
+export const wovenChord = id => [0,2,4].map(offset=>(id+offset)%WARP_COUNT);

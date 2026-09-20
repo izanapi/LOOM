@@ -1,5 +1,5 @@
-import { frequency, clamp } from './music.mjs?v=corner-3';
-import { VOICES, pluckedWave } from './voices.mjs?v=corner-3';
+import { frequency, clamp } from './music.mjs?v=desert-4';
+import { VOICES, pluckedWave } from './voices.mjs?v=desert-4';
 
 // A diffuse, decorrelated stereo tail with early reflections and a 5.2 s RT60.
 export function hallImpulse(ac) {
@@ -145,10 +145,10 @@ export class InstrumentAudio {
       lfo.connect(amount); amount.connect(target.frequency); lfo.start(t); lfo.stop(t + duration + .04);
       sources.push(lfo); nodes.push(lfo, amount);
     };
-    if (voice === 'koto') {
+    if (['koto','qanun','santur','oud'].includes(voice)) {
       // Cache a bounded set of pitched buffers; rapid strums do not allocate forever.
       const bright = Math.round(brightness * 4) / 4;
-      const key = `${ac.sampleRate}/${midi}/${this.settings.decay}/${bright}`;
+      const key = `${voice}/${ac.sampleRate}/${midi}/${this.settings.decay}/${bright}`;
       let buffer = this.pluckCache.get(key);
       if (!buffer) {
         const data = pluckedWave(ac.sampleRate, f, duration, bright);
@@ -159,6 +159,15 @@ export class InstrumentAudio {
       const string = ac.createBufferSource(); string.buffer = buffer; string.connect(env);
       string.start(t); string.stop(t + duration + .04); nodes.push(string); sources.push(string);
       filter.frequency.value = 2600 + brightness * 8000;
+      if(voice==='qanun'||voice==='santur'){
+        // Slightly separated courses share a pluck but beat against one another.
+        const course=ac.createBufferSource(),level=ac.createGain();course.buffer=buffer;
+        course.detune.value=voice==='qanun'?5:-7;level.gain.value=.45;
+        course.connect(level);level.connect(env);course.start(t+.003);course.stop(t+duration+.04);
+        nodes.push(course,level);sources.push(course);
+        addPartial(2,voice==='santur'?.25:.1,.22);addPartial(4.006,voice==='santur'?.12:.025,.12);
+      }
+      if(voice==='oud'){filter.frequency.value=1100+brightness*2200;addPartial(1,.2,.45,'triangle');}
     } else if (voice === 'bamboo') {
       const fundamental = addPartial(1, .75); addPartial(2, .08);
       vibrato(fundamental, 4.8, .0035);

@@ -1,7 +1,14 @@
-import { VOICES } from './voices.mjs?v=corner-3';
+import { VOICES } from './voices.mjs?v=desert-4';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {
+  hijaz: { name: 'Hijaz', intervals: [0, 1, 4, 5, 7, 8, 10] },
+  hijazkar: { name: 'Hijazkar', intervals: [0, 1, 4, 5, 7, 8, 11] },
+  nahawand: { name: 'Nahawand', intervals: [0, 2, 3, 5, 7, 8, 11] },
+  nikriz: { name: 'Nikriz', intervals: [0, 2, 3, 6, 7, 9, 10] },
+  kurd: { name: 'Kurd', intervals: [0, 1, 3, 5, 7, 8, 10] },
+  rast: { name: 'Rast · ¼', intervals: [0, 2, 3.5, 5, 7, 9, 10.5] },
+  bayati: { name: 'Bayati · ¼', intervals: [0, 1.5, 3, 5, 7, 8, 10] },
   hirajoshi: { name: 'Hirajoshi', intervals: [0, 2, 3, 7, 8] },
   pentatonic: { name: 'Major pentatonic', intervals: [0, 2, 4, 7, 9] },
   minorPent: { name: 'Minor pentatonic', intervals: [0, 3, 5, 7, 10] },
@@ -28,7 +35,22 @@ export function midiForString(id, root, scale, octave = 0) {
     + Math.floor(degree / intervals.length) * 12 + intervals[degree % intervals.length];
 }
 export const frequency = midi => 440 * 2 ** ((midi - 69) / 12);
-export const noteName = midi => NOTES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+export const noteName = midi => {
+  const upper=Math.ceil(midi), cents=Math.round((upper-midi)*100);
+  return NOTES[((upper%12)+12)%12]+(Math.floor(upper/12)-1)+(cents?'↓'+cents:'');
+};
+// Older HANABI tunings remain readable, but LOOM's picker and dice favor its own catalog.
+export const LOOM_SCALES = Object.keys(SCALES).filter(k=>!['hirajoshi','ritusen','insen','kumoi','kumoijoshi','ryukyu'].includes(k));
+export const PALETTES = {
+  desert: {name:'Desert',hue:28,spread:2.1,bg:'#130e0b',panel:'#221912',ink:'#f3dfc4',dim:'#b19a80',line:'#473327',accent:'#edb56e'},
+  rose: {name:'Rose dune',hue:345,spread:2.5,bg:'#170e13',panel:'#291b24',ink:'#f5dce5',dim:'#b597a5',line:'#4c303f',accent:'#eea0b4'},
+  copper: {name:'Copper',hue:12,spread:2,bg:'#150d0b',panel:'#2b1a14',ink:'#f6dac3',dim:'#b39280',line:'#503527',accent:'#f49a68'},
+  oasis: {name:'Oasis',hue:155,spread:3,bg:'#0c1413',panel:'#172722',ink:'#def0db',dim:'#91afa1',line:'#2d463c',accent:'#a9d6a0'},
+  indigo: {name:'Indigo night',hue:230,spread:3.5,bg:'#0e101c',panel:'#1a1d32',ink:'#e3dff6',dim:'#9b98bb',line:'#363653',accent:'#b2a5f3'},
+  ember: {name:'Ember',hue:24,spread:3,bg:'#160e0c',panel:'#291b17',ink:'#f4ded0',dim:'#b29a8b',line:'#4a3026',accent:'#ffaa71'},
+  aurora: {name:'Aurora',hue:155,spread:4.4,bg:'#090b18',panel:'#171b2d',ink:'#e9edf9',dim:'#8b95b0',line:'#272d45',accent:'#76ffed'},
+  neon: {name:'Neon',hue:175,spread:11,bg:'#0b0b18',panel:'#19182d',ink:'#ece7ff',dim:'#a09abb',line:'#36324d',accent:'#ab8cff'},
+};
 export function angleForString(id) {
   const fraction = ((id % PER_HAND) + .5) / PER_HAND;
   return Math.PI / 2 + (id < PER_HAND ? 1 : -1) * fraction * Math.PI;
@@ -92,9 +114,9 @@ export function randomPatch(current, random = Math.random) {
   };
   return {
     root: different(Array.from({length: 12}, (_, i) => i), current.root),
-    scale: different(Object.keys(SCALES), current.scale),
+    scale: different(LOOM_SCALES, current.scale),
     voice: different(Object.keys(VOICES), current.voice),
-    palette: different(['neon', 'aurora', 'ember'], current.palette),
+    palette: different(Object.keys(PALETTES), current.palette),
   };
 }
 

@@ -76,7 +76,7 @@ test('random patches change musical settings without changing tempo, gain or loo
     assert.equal(patch.bpm, undefined); assert.equal(patch.volume, undefined);
     assert.ok(SCALES[patch.scale]);
   }
-  assert.equal(Object.keys(SCALES).length, 14);
+  assert.equal(Object.keys(SCALES).length, 21);
 });
 
 test('curated scales retain a tonic/fifth and omit the abrasive random choices', () => {

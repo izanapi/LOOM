@@ -1,10 +1,10 @@
 # LOOM
 
-An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, scale catalog, eight synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder. Its strings form an L: 14 melodic strings gathered on the right, six resonance strings gathered below, and a quiet empty corner at the upper left.
+An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, effects and transport, with eleven synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder. Its strings form an L: 14 melodic strings gathered on the right, twelve resonance strings gathered below, and a quiet empty corner at the upper left.
 
 ## Play
 
-- **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Insen with Koto.
+- **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Hijaz with Qanun and the warm Desert palette.
 - **Brush the lower-right corner** to catch short resonances alongside the plucks, without waiting for a hold. Diagonal sweeps pass through several colors. Fast bundled notes fan out over a few milliseconds; excitation and voice counts are bounded.
 - **Rake the horizontal strings on their own.** They pick up recent notes from the last eight seconds, or a vertical string another finger is holding, and return them as harmony, grains or echoes. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
 - **Use the empty corner as a resting place.** It makes no sound, but you can start a sweep there and move into the strings. Upper vertical strings pluck without selecting a hidden horizontal resonance.
@@ -15,14 +15,28 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 
 | Horizontal string | Response |
 | --- | --- |
-| HARM | Octave, fifth above the octave, and double octave |
-| BLOOM | Sustained harmony from alternating degrees of the selected scale |
-| FIFTH | Fundamental, exact fifth and octave |
-| DUST | Overlapping windowed grains cut from the Koto plucked-string synthesis |
-| ECHO | A quiet three-note thread returning at dotted-eighth intervals |
-| ROOT | A low tonic drone under the plucked note's lower octave |
+| BLOOM | Scale harmony with an opening filter |
+| HARM | Octave and upper partials |
+| DUST | Overlapping grains of a plucked string |
+| FIFTH | Fundamental and exact fifth |
+| SILK | Soft triangle tones with slow amplitude movement |
+| THIRD | A third from the selected scale |
+| SHIMMER | High octaves with independent tremolo |
+| OCTAVE | Fundamental and octave |
+| ECHO | Neighboring notes returning at dotted-eighth intervals |
+| ROOT | Low tonic and the played note below |
+| MIRAGE | Reversed, windowed string grains |
+| PEDAL | Low tonic and fifth |
 
-FIFTH and HARM deliberately use exact chromatic fifths; they can color outside the scale. BLOOM follows the selected scale. DUST grains are generated locally, with no microphone or downloaded samples.
+Texture and pitch threads alternate within the same lower band. FIFTH, HARM and PEDAL deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
+
+## LOOM tunings and colors
+
+Hijaz, Hijazkar, Nahawand, Nikriz, Kurd, Rast and Bayati lead the scale picker, alongside western and pentatonic options. Rast and Bayati use fixed 24-tone approximations. These are exploratory **maqam-inspired pitch sets**, not full maqam performance models: melodic development, direction and regional intonation are not modeled. The initial Hijaz uses a Nahawand upper tetrachord, and Nahawand uses its ascending leading-tone version. Sources: [MaqamWorld Hijaz](https://www.maqamworld.com/en/maqam/hijaz.php), [Rast](https://www.maqamworld.com/en/maqam/rast.php), [Bayati](https://www.maqamworld.com/en/maqam/bayati.php), [Nikriz](https://www.maqamworld.com/en/maqam/nikriz.php). Note labels such as E3↓50 mean 50 cents below E3. Legacy Japanese tuning definitions remain internally for compatibility, but are excluded from LOOM's picker and dice.
+
+Qanun uses slightly detuned plucked courses; Santur adds a bright hammer-like attack; Oud has a short wooden body. They are synthesized interpretations, not samples. Existing voices remain available.
+
+SETTINGS offers Desert, Rose dune, Copper, Oasis, Indigo night, Ember, Aurora and Neon. Palettes affect panels, controls, and both string families.
 
 The continuous strings carry wave packets outward from each contact. A bright knot indicates a held crossing; fine colored rings mark the recorded hand during playback. Reduced motion keeps brightness feedback while removing displacement. There are no decorative particles or pad cells.
 
@@ -32,7 +46,7 @@ Press **REC**, then play. The first pluck or horizontal brush starts two bars; a
 
 **PAUSE** retains the phrase, **PLAY** restarts it, and **CLEAR** releases recorded resonances and erases the phrase. Key / scale / octave retune subsequent playback. VOICE changes plucks; horizontal resonance types retain their identities. Tempo is locked during recording. A tempo change affects subsequently scheduled events; an already sounding held loop voice completes its scheduled release. Loops live in page memory and disappear on reload.
 
-**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. The original PLUCK / CHORD / ARP mode switches are replaced by the continuous crossing gesture; short taps always play one string.
+**FLOW** remains an optional quiet accompaniment. It follows tuning and tempo and is never recorded. **PLUCK** plays one string. **CHORD** opens three scale degrees together. **ARP** cycles through those degrees while held, on eighth-note beats following BPM and sharing the transport clock. Each mode also supports held crossings; generated chord and arpeggio notes are recorded as plucks, so changing mode does not expand them again on playback.
 
 ## Controls and keyboard
 
@@ -41,7 +55,7 @@ The upper controls remain KEY, SCALE, VOICE, dice, SOUND and SETTINGS. The lower
 Focus the strings by clicking or tabbing to them:
 
 - `A S D F G H J Q W E R T Y U`: 14 strings, low to high. Hold to couple.
-- `1`–`6`: choose a horizontal string for the next keyboard note.
+- `1`–`0`, `-`, `=`: choose a horizontal string for the next keyboard note.
 - `Space`: record / pause / play.
 - `Esc`: stop audio, or close the settings dialog first.
 
@@ -66,6 +80,6 @@ Open http://127.0.0.1:8071. ES modules need an HTTP server. Audio starts on the 
 node --test tests/*.test.mjs
 ```
 
-The suite retains the original music/audio checks and replaces circular-gesture checks with tap/hold, weaving, multitouch, cancellation, crossing-duration recording, loop-boundary and keyboard tests. `tests/browser.cjs` checks actual Chrome touch input and five viewport sizes; `tests/sound.cjs` renders the six resonances and a ten-contact mix through Web Audio to check audibility, finite output and release. These browser scripts use the local bundled Playwright and installed Chrome paths; adjust them on other machines. Generated screenshots and the dry resonance check WAV are in `artifacts/`.
+The suite retains the original music/audio checks and replaces circular-gesture checks with tap/hold, weaving, multitouch, cancellation, crossing-duration recording, loop-boundary and keyboard tests. `tests/browser.cjs` checks actual Chrome touch input and five viewport sizes; `tests/sound.cjs` renders all twelve resonances, the three new voices and a ten-contact mix through Web Audio to check audibility, finite output and release. These browser scripts use the local bundled Playwright and installed Chrome paths; adjust them on other machines. Generated screenshots and the dry resonance check WAV are in `artifacts/`.
 
 Actual iPhone Safari sound, latency and prolonged touch feel still require device testing.

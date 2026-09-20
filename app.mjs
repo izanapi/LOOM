@@ -1,12 +1,12 @@
-import { NOTES, SCALES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=corner-3';
-import { InstrumentAudio } from './audio.mjs?v=corner-3';
-import { VOICES } from './voices.mjs?v=corner-3';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes } from './loom.mjs?v=corner-3';
-import { LoomResonance } from './resonance.mjs?v=corner-3';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=desert-4';
+import { InstrumentAudio } from './audio.mjs?v=desert-4';
+import { VOICES } from './voices.mjs?v=desert-4';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord } from './loom.mjs?v=desert-4';
+import { LoomResonance } from './resonance.mjs?v=desert-4';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
-const config={root:0,scale:'insen',voice:'koto',octave:0,palette:'aurora',bpm:92,swing:0,glow:55,showNotes:true,calm:false,metronome:false};
+const config={root:0,scale:'hijaz',voice:'qanun',octave:0,mode:'pluck',palette:'desert',bpm:92,swing:0,glow:55,showNotes:true,calm:false,metronome:false};
 const fingers=new Map(),pressedKeys=new Set(),pulses=[],visualQueue=[];
 const strings=Array.from({length:WARP_COUNT},(_,id)=>({id,energy:0,last:-10}));
 const rows=WEFTS.map(()=>({energy:0}));
@@ -21,8 +21,9 @@ const midi=id=>degreeMidi(id,config);
 const resonance=new LoomResonance(audio,(id,row,time,source)=>visualQueue.push({id,row,time,strength:.3,y:weftY(row,geometry),fromLoop:source==='loop'}));
 const selectOptions=(element,options)=>{for(const [value,label] of options){const o=document.createElement('option');o.value=value;o.textContent=label;element.append(o);}};
 selectOptions($('root'),NOTES.map((n,i)=>[i,n]));
-selectOptions($('scale'),Object.entries(SCALES).map(([k,s])=>[k,s.name]));
+selectOptions($('scale'),LOOM_SCALES.map(k=>[k,SCALES[k].name]));
 selectOptions($('voice'),Object.entries(VOICES).map(([k,v])=>[k,v.name]));
+selectOptions($('palette'),Object.entries(PALETTES).map(([k,p])=>[k,p.name]));
 for(const id of ['voice','scale','palette']) $(id).value=config[id];
 $('glow').value=config.glow;$('glowValue').value=config.glow;
 function resize(){
@@ -33,6 +34,12 @@ function resize(){
 }
 new ResizeObserver(resize).observe($('stage'));resize();
 function tuningReadout(){ $('keyReadout').textContent=`${NOTES[config.root]} · ${SCALES[config.scale].name.toUpperCase()}`; }
+function applyPalette(){
+  const p=PALETTES[config.palette];
+  for(const key of ['bg','panel','ink','dim','line'])document.documentElement.style.setProperty('--'+key,p[key]);
+  document.documentElement.style.setProperty('--cyan',p.accent);
+  document.documentElement.style.setProperty('--pink',p.accent);
+}
 function hint(message){$('hint').textContent=message;}
 function startAudio(){
   const currentGeneration=generation;
@@ -42,10 +49,10 @@ function startAudio(){
   }).catch(()=>hint('Audio unavailable. Touch a string to retry.'));
 }
 function colorFor(id,light=70,alpha=1){
-  const hue=config.palette==='ember'?24+id*3:config.palette==='neon'?175+id*11:155+id*4.4;
+  const p=PALETTES[config.palette],hue=p.hue+id*p.spread;
   return `hsla(${hue},65%,${light}%,${alpha})`;
 }
-function rowColor(row,alpha=1){return `hsla(${WEFTS[row].hue},65%,72%,${alpha})`;}
+function rowColor(row,alpha=1){return colorFor(row+(row%2?3:0),72,alpha);}
 function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x=null){
   strings[id].energy=Math.max(strings[id].energy,strength);
   if(row!==null) rows[row].energy=Math.max(rows[row].energy,strength);
@@ -78,7 +85,7 @@ function record(event,when=audio.time){
 function emit(id,velocity=.65,brightness=.6,when=audio.time,source='live',interval=0,y=geometry.height*.5){
   id=((id%WARP_COUNT)+WARP_COUNT)%WARP_COUNT;if(!audio.context)return;
   if(source==='live')hint('BRUSH THE CORNER · HOLD TO WEAVE');
-  if(source==='live')record({type:'pluck',id,velocity,brightness,interval,y:(y-geometry.top)/(geometry.bottom-geometry.top)},when);
+  if(source==='live'||source==='arp')record({type:'pluck',id,velocity,brightness,interval,y:(y-geometry.top)/(geometry.bottom-geometry.top)},when);
   audio.play(midi(id)+interval,{voice:source==='flow'?'velvet':config.voice,velocity,brightness,when,pan:(id/(WARP_COUNT-1)-.5)*1.1});
   const visual={time:when,id,strength:velocity,fromLoop:source==='loop',row:null,y};
   if(when>audio.time+.015)visualQueue.push(visual);else visualize(id,velocity,source==='loop',null,y);
@@ -86,7 +93,9 @@ function emit(id,velocity=.65,brightness=.6,when=audio.time,source='live',interv
 function pluck(id,velocity,brightness,y,when=audio.time){
   if(id===null)return;
   const now=performance.now()/1000;if(now-strings[id].last<.035)return;
-  strings[id].last=now;emit(id,velocity,brightness,when,'live',0,y);
+  strings[id].last=now;
+  const notes=config.mode==='chord'?wovenChord(id):[id];
+  notes.forEach((note,i)=>emit(note,velocity/Math.sqrt(notes.length),brightness,when+i*.009,'live',0,y));
   const old=memory.findIndex(n=>n.id===id);if(old>=0)memory.splice(old,1);
   memory.push({id,time:audio.time});if(memory.length>5)memory.shift();
 }
@@ -98,9 +107,9 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
   const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
   if(!seeds.length)seeds.push(0,4);
-  const chosen=seeds.slice(0,[3,4,5].includes(row)?1:2);
+  const chosen=seeds.slice(0,['dust','mirage','echo','root','pedal'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
-    const when=audio.time+offset+i*.035,duration=row===4?.95:.52+velocity*.38,level=velocity*.52;
+    const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
     resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,source:'brush',pan:(id/13-.5)*.9});
     const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
@@ -150,6 +159,12 @@ function schedule(){
   while(clock.next<now+.09){
     const step=clock.step,when=clock.next+(step%2?duration*config.swing:0);
     const click=recordingClick(step,loop,config.metronome);if(click)audio.click(when,click.accent);
+    if(config.mode==='arp'&&step%2===0){
+      for(const f of fingers.values())if(f.id!==null){
+        const notes=wovenChord(f.id),index=[0,1,2,1][Math.floor(step/2)%4];
+        emit(notes[index],f.velocity*.65,f.brightness??.6,when,'arp',0,f.y??weftY(f.row??0,geometry));
+      }
+    }
     if(flow.enabled&&step>=flow.startStep){
       const relative=step-flow.startStep,cycle=Math.floor(relative/LOOP_STEPS);
       if(cycle!==flow.cycle){if(cycle%2===0||!flow.phrase.length)flow.phrase=accompanimentPhrase(config.scale);flow.cycle=cycle;}
@@ -221,7 +236,8 @@ let keyboardRow=2;
 canvas.addEventListener('keydown',e=>{
   canvas.classList.remove('pointer-playing');
   const id=keyboard.indexOf(e.code);
-  if(/^Digit[1-6]$/.test(e.code)){keyboardRow=Number(e.code.slice(-1))-1;hint('Hold a note key × '+WEFTS[keyboardRow].name);}
+  const rowKey=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'].indexOf(e.code);
+  if(rowKey>=0){keyboardRow=rowKey;hint('Hold a note key × '+WEFTS[keyboardRow].name);}
   else if(id>=0){e.preventDefault();if(e.repeat||pressedKeys.has(e.code))return;pressedKeys.add(e.code);startAudio();
     fingers.set(e.code,{id,row:keyboardRow,velocity:.7,started:audio.time,coupled:false});pluck(id,.7,.6,weftY(keyboardRow,geometry));
   }else if(e.code==='Space'){e.preventDefault();if(!e.repeat)toggleLoop();}
@@ -246,6 +262,11 @@ function toggleFlow() {
   }
 }
 $('flow').addEventListener('click', toggleFlow);
+for(const element of document.querySelectorAll('[data-mode]'))element.addEventListener('click',()=>{
+  releaseAll();config.mode=element.dataset.mode;
+  for(const button of document.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===config.mode));
+  hint({pluck:'PLUCK · ONE STRING, ONE NOTE',chord:'CHORD · THREE STRINGS TOGETHER',arp:'ARP · HOLD TO LET THE NOTES CIRCLE'}[config.mode]);
+});
 $('loop').addEventListener('click', toggleLoop);
 $('clearLoop').addEventListener('click', () => { for (const f of fingers.values()) f.record=null; loop.events = []; setLoopState('empty'); $('loopProgress').style.width = '0%'; });
 function changeTempo(value) {
@@ -264,7 +285,7 @@ $('randomize').addEventListener('click', () => {
   releaseAll(); Object.assign(config, randomPatch(config));
   if (flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
   for (const id of ['root', 'scale', 'voice', 'palette']) $(id).value = String(config[id]);
-  tuningReadout();
+  tuningReadout();applyPalette();
   hint(`${NOTES[config.root]}, ${SCALES[config.scale].name}, ${config.voice}`);
 });
 for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id).addEventListener('change', event => {
@@ -272,6 +293,7 @@ for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id)
   config[id] = ['root', 'octave', 'swing'].includes(id) ? Number(event.target.value) : event.target.value;
   if (['root', 'scale', 'octave'].includes(id)) tuningReadout();
   if (id === 'scale' && flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
+  if (id === 'palette') applyPalette();
 });
 for (const id of ['volume', 'echo', 'hall', 'decay', 'glow']) $(id).addEventListener('input', event => {
   const value = Number(event.target.value); $(id + 'Value').value = value;
@@ -333,7 +355,7 @@ function draw(ms){
     for(const h of active){if(axis==='v'?h.id!==index:h.row!==index)continue;
       v+=Math.sin(pos*.07-frameTime*(axis==='v'?30:24)+h.serial)*strength(h)*1.6;
     }
-    return clamp(v,-8,8);
+    const limit=axis==='h'?Math.min(8,g.dy*.35):8;return clamp(v,-limit,limit);
   }
   for(const s of strings){
     const x=warpX(s.id,g),e=s.energy;
@@ -343,7 +365,7 @@ function draw(ms){
     for(let y=g.top;y<=g.bottom;y+=4){const envelope=Math.sin(Math.PI*(y-g.top)/(g.bottom-g.top));ctx.lineTo(x+displacement('v',s.id,y)*envelope,y);}ctx.lineTo(x,g.bottom);ctx.stroke();ctx.shadowBlur=0;
     for(const y of [g.top-7,g.bottom+7]){ctx.fillStyle=colorFor(s.id,75,.6);ctx.beginPath();ctx.arc(x,y,1.6,0,Math.PI*2);ctx.fill();}
     if(config.showNotes){ctx.font=`${g.width<500?9:11}px ui-monospace,monospace`;ctx.textAlign='center';ctx.fillStyle=e>.12?colorFor(s.id,84):'#96a3b5';
-      ctx.fillText(noteName(midi(s.id)),x,g.bottom+24+(g.dx<24&&s.id%2?12:0));}
+      ctx.fillText(noteName(midi(s.id)).replace('↓50','↓'),x,g.bottom+24+(g.dx<24&&s.id%2?12:0));}
   }
   for(let row=0;row<WEFTS.length;row++){
     const y=weftY(row,g),e=rows[row].energy,start=g.weftLeft,end=g.right+10;
@@ -356,7 +378,7 @@ function draw(ms){
       for(let x=start;x<=end;x+=3){const envelope=Math.sin(Math.PI*(x-start)/(end-start));const weave=Math.sin((x-g.left)/g.dx*Math.PI)*.6;
         ctx.lineTo(x,y+ply*2+weave+displacement('h',row,x)*envelope);}ctx.stroke();ctx.shadowBlur=0;
     }
-    ctx.fillStyle=rowColor(row,e>.1?.95:.66);ctx.textAlign='left';ctx.font='9px ui-monospace,monospace';ctx.fillText(WEFTS[row].name,10,y+3);
+    ctx.fillStyle=rowColor(row,e>.1?.95:.75);ctx.textAlign='left';ctx.font=`${Math.min(9,g.dy*.85)}px ui-monospace,monospace`;ctx.fillText(WEFTS[row].name,7,y+3);
     for(const x of [start,end]){ctx.strokeStyle=rowColor(row,.45);ctx.lineWidth=1;line(x,y-3,x,y+4);}
   }
   // Contact knots: white = current fingers; a fine colored ring = recorded hand.
@@ -385,4 +407,4 @@ function draw(ms){
   if(frameTime-lastNoteTime>3)$('noteReadout').textContent='';
   requestAnimationFrame(draw);
 }
-tuningReadout();requestAnimationFrame(draw);
+tuningReadout();applyPalette();requestAnimationFrame(draw);

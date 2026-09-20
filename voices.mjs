@@ -1,5 +1,8 @@
 // One catalog feeds synthesis, the voice picker and dice randomization.
 export const VOICES = {
+  qanun: { name: 'Qanun', attack: .002, length: 1.15, gain: .22 },
+  santur: { name: 'Santur', attack: .001, length: 1.3, gain: .20 },
+  oud: { name: 'Oud', attack: .004, length: .65, gain: .25 },
   kalimba: { name: 'Kalimba', attack: .003, length: 1, gain: .18 },
   koto: { name: 'Koto', attack: .0015, length: .85, gain: .23 },
   bamboo: { name: 'Bamboo', attack: .07, length: 1.15, gain: .20 },

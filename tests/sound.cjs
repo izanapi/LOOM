@@ -7,24 +7,25 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  const result=await page.evaluate(async()=>{
   const {InstrumentAudio}=await import('./audio.mjs'),{LoomResonance}=await import('./resonance.mjs'),{resonanceNotes}=await import('./loom.mjs');
   const metrics=[],samples=[];const Original=window.AudioContext;
-  for(let row=0;row<8;row++){
+  for(let row=0;row<17;row++){
    const c=new OfflineAudioContext(2,44100*4,44100);window.AudioContext=function(){return c;};
    const a=new InstrumentAudio();a.build();a.configure({echo:0,hall:0,volume:65});
    let time=0;const wrapper={context:c,input:a.input,settings:a.settings,get time(){return time;},play:a.play.bind(a)};
-   const r=new LoomResonance(wrapper),config={root:0,scale:'insen',octave:0};
-   if(row<6)r.start(resonanceNotes(4,row,config),row,{id:4,when:.1,duration:2,level:.7});
-   else if(row===6)for(let i=0;i<10;i++)r.start(resonanceNotes(i,i%6,config),i%6,{id:i,when:.1,duration:2,level:.7});
-   else for(let i=0;i<14;i++){
-     a.play(48+i,{voice:'koto',velocity:.55,when:.1+i*.008});
-     r.start(resonanceNotes(i,i%6,config),i%6,{id:i,when:.1+i*.008,duration:.8,level:.4,attack:.055,source:'brush'});
+   const r=new LoomResonance(wrapper),config={root:0,scale:'bayati',octave:0};
+   if(row<12)r.start(resonanceNotes(4,row,config),row,{id:4,when:.1,duration:2,level:.7});
+   else if(row===12)for(let i=0;i<10;i++)r.start(resonanceNotes(i,i%12,config),i%12,{id:i,when:.1,duration:2,level:.7});
+   else if(row===13)for(let i=0;i<14;i++){
+     a.play(48+i,{voice:'qanun',velocity:.55,when:.1+i*.008});
+     r.start(resonanceNotes(i,i%12,config),i%12,{id:i,when:.1+i*.008,duration:.8,level:.4,attack:.055,source:'brush'});
    }
+   else a.play(60.5,{voice:['qanun','santur','oud'][row-14],velocity:.8,when:.1});
    // Render the same audio-clock echo scheduler used during live playing.
-   for(time=0;time<(row===7?.75:2.3);time+=.025)r.tick();
+   for(time=0;time<(row===13?.75:2.3);time+=.025)r.tick();
    const out=await c.startRendering(),pcm=out.getChannelData(0);
    const rms=(start,end)=>Math.sqrt(pcm.slice(start*44100,end*44100).reduce((sum,x)=>sum+x*x,0)/((end-start)*44100));
    let peak=0;for(const x of pcm){if(!Number.isFinite(x))throw Error('non-finite output');peak=Math.max(peak,Math.abs(x));}
-   metrics.push({row,peak,attack:rms(.15,.25),body:rms(.9,1.5),tail:rms(3.4,3.9)});
-   if(row<6)samples.push(Array.from(pcm));
+   metrics.push({row,peak,attack:rms(.15,.25),body:row>=14?rms(.2,.5):rms(.9,1.5),tail:rms(3.4,3.9)});
+   if(row<12)samples.push(Array.from(pcm));
   }
   window.AudioContext=Original;return {metrics,samples};
  });
