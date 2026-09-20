@@ -1,4 +1,4 @@
-import { VOICES } from './voices.mjs?v=single-9';
+import { VOICES } from './voices.mjs?v=drift-10';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {

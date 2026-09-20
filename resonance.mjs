@@ -1,6 +1,6 @@
-import { frequency, clamp } from './music.mjs?v=single-9';
-import { pluckedWave } from './voices.mjs?v=single-9';
-import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=single-9';
+import { frequency, clamp } from './music.mjs?v=drift-10';
+import { pluckedWave } from './voices.mjs?v=drift-10';
+import { WEFTS, isHarmony, weftRelease } from './loom.mjs?v=drift-10';
 
 // Coupled strings enter the existing HANABI effects bus. Each contact owns its
 // envelope, so releasing one finger never releases another finger's resonance.
@@ -9,6 +9,12 @@ export class LoomResonance {
   start(notes,row,{when=this.audio.time,level=.7,duration=Infinity,pan=0,source='live',id=0,attack=.85,voice='qanun'}={}) {
     const ac=this.audio.context; if(!ac) return null;
     const kind=WEFTS[row].kind,grain=['dust','mirage'].includes(kind),low=['root','drone'].includes(kind),sharedVoice=isHarmony(row)&&kind!=='drone';
+    if(kind==='drone'){
+      source=source==='loop'?'loop':'live';
+      const held=[...this.active].find(h=>h.row===row&&h.source===source&&!h.stopping&&h.notes[0]===notes[0]);
+      if(held)return held;
+      duration=Infinity;
+    }
     const t=Math.max(when,ac.currentTime), env=ac.createGain(), stereo=ac.createStereoPanner();
     const filter=ac.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=sharedVoice?18000:low?700:kind==='silk'?1800:6400;
     stereo.pan.value=pan; env.connect(filter); filter.connect(stereo); stereo.connect(this.audio.input);
@@ -65,6 +71,7 @@ export class LoomResonance {
   }
   stop(handle,when=this.audio.time,release=null,force=false) {
     if(!handle || (handle.stopping && !force)) return;
+    if(WEFTS[handle.row].kind==='drone'&&release===null&&!force)return;
     release??=weftRelease(handle.row);
     const t=Math.max(when,this.audio.time), p=handle.env.gain;
     // cancelAndHold preserves the exact envelope level even during the attack.
@@ -97,6 +104,7 @@ export class LoomResonance {
       }
     }
   }
+  stopDrone() {for(const h of [...this.active])if(WEFTS[h.row].kind==='drone')this.stop(h,this.audio.time,.15,true);}
   stopSource(source) { for(const h of this.active) if(h.source===source) this.stop(h,this.audio.time,.15,true); }
   clear() {for(const h of [...this.active]) this.stop(h,this.audio.time,.05,true);}
 }

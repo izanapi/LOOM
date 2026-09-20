@@ -150,11 +150,21 @@ test('drone stays in the deep register and textures keep their release tails',as
  }
  h.pointer('pointerdown',1,null,11);await h.flush();h.advance(.5);
  const drone=h.fingers.get(1).handle;h.pointer('pointerup',1,null,11);h.advance(2);
- assert.ok(h.resonance.active.has(drone));assert.equal(drone.release,7);
+ assert.ok(h.resonance.active.has(drone));assert.equal(drone.stopping,false);
  h.pointer('pointerdown',2,null,2);h.advance(.5);const dust=h.fingers.get(2).handle;
  h.pointer('pointerup',2,null,2);h.advance(1);assert.ok(h.resonance.active.has(dust));assert.equal(dust.release,3.5);
- h.advance(8);assert.equal(h.resonance.active.size,0);h.pause();
+ h.advance(30);assert.ok(h.resonance.active.has(drone));assert.ok(!h.resonance.active.has(dust));h.pause();assert.equal(h.resonance.active.size,0);
 });
+test('latched drone stays level, does not stack on retrigger, and CLEAR stops it',async()=>{
+ const h=harness();h.pointer('pointerdown',1,null,11);await h.flush();h.advance(.5);
+ const drone=h.fingers.get(1).handle,level=drone.env.gain.value;
+ h.pointer('pointerup',1,null,11);h.audio.context.advance(180);h.schedule();
+ assert.equal(drone.env.gain.value,level);assert.equal(drone.stopping,false);
+ for(let i=0;i<8;i++){h.pointer('pointerdown',2,null,11);h.advance(.4);h.pointer('pointerup',2,null,11);}
+ assert.equal([...h.resonance.active].filter(h=>h.row===11).length,1);
+ h.elements.get('clearLoop').dispatch('click');assert.equal(h.resonance.active.size,0);h.pause();
+});
+
 test('drone stays one root while sliding, playing warps and replaying a loop',async()=>{
  const h=harness(),g=h.geometry,canvas=h.elements.get('canvas');
  h.elements.get('root').value='2';h.elements.get('root').dispatch('change');
@@ -343,7 +353,7 @@ test('keyboard holds couple to the chosen weft and all twelve timbres release', 
   const h=harness(),canvas=h.elements.get('canvas');
   for(let row=0;row<12;row++){
     canvas.dispatch('keydown',{code:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'][row]});canvas.dispatch('keydown',{code:'KeyD'});await h.flush();h.advance(.5);
-    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});h.advance(loom.weftRelease(row)+.2);
+    assert.equal(h.fingers.get('KeyD').handle.row,row);h.document.dispatch('keyup',{code:'KeyD'});if(row===11)h.elements.get('clearLoop').dispatch('click');h.advance(loom.weftRelease(row)+.2);
     assert.equal(h.resonance.active.size,0);
   }h.pause();
 });

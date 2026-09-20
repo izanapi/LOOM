@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=single-9';
-import { InstrumentAudio } from './audio.mjs?v=single-9';
-import { VOICES } from './voices.mjs?v=single-9';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=single-9';
-import { LoomResonance } from './resonance.mjs?v=single-9';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=drift-10';
+import { InstrumentAudio } from './audio.mjs?v=drift-10';
+import { VOICES } from './voices.mjs?v=drift-10';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=drift-10';
+import { LoomResonance } from './resonance.mjs?v=drift-10';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -69,7 +69,7 @@ function setLoopState(state){
   const icons={empty:'●',armed:'●',recording:'●',playing:'Ⅱ',paused:'▶'};
   $('loopLabel').textContent=labels[state];$('loopIcon').textContent=icons[state];
   $('loop').classList.toggle('recording',state==='armed'||state==='recording');$('loop').classList.toggle('playing',state==='playing');
-  $('loop').setAttribute('aria-label',labels[state]+': two-bar loop');$('clearLoop').disabled=state==='empty';
+  $('loop').setAttribute('aria-label',labels[state]+': two-bar loop');$('clearLoop').disabled=state==='empty'&&![...resonance.active].some(h=>isDrone(h.row));
   $('bpm').disabled=state==='recording';$('tap').disabled=state==='recording';
   $('loopStatus').textContent={empty:'2 BARS · CROSSINGS + NOTES',armed:'PLAY TO RECORD',recording:'RECORDING · 2 BARS',playing:'LOOPING · CROSSINGS + NOTES',paused:'PAUSED'}[state];
   if(state!=='playing'&&state!=='recording'){
@@ -293,7 +293,7 @@ for(const element of document.querySelectorAll('[data-mode]'))element.addEventLi
   hint({pluck:'PLUCK · SLIDE DOWN FOR FIFTH + OCTAVE',chord:'CHORD · THREE STRINGS TOGETHER',arp:'ARP · HOLD EITHER THREAD TO CIRCLE'}[config.mode]);
 });
 $('loop').addEventListener('click', toggleLoop);
-$('clearLoop').addEventListener('click', () => { for (const f of fingers.values()) f.record=null; loop.events = []; setLoopState('empty'); $('loopProgress').style.width = '0%'; });
+$('clearLoop').addEventListener('click', () => { resonance.stopDrone(); for (const f of fingers.values()) f.record=null; loop.events = []; setLoopState('empty'); $('loopProgress').style.width = '0%'; });
 function changeTempo(value) {
   if (loop.state === 'recording') return;
   config.bpm = clamp(Number.isFinite(Number(value)) && Number(value) > 0 ? Math.round(Number(value)) : 92, 40, 200);
@@ -307,7 +307,7 @@ $('tap').addEventListener('click', () => {
   $('beatDot').classList.add('on'); startAudio();
 });
 $('randomize').addEventListener('click', () => {
-  releaseAll(); Object.assign(config, randomPatch(config));
+  releaseAll(); resonance.stopDrone(); Object.assign(config, randomPatch(config));
   if (flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
   for (const id of ['root', 'scale', 'voice', 'palette']) $(id).value = String(config[id]);
   tuningReadout();
@@ -315,6 +315,7 @@ $('randomize').addEventListener('click', () => {
 });
 for (const id of ['root', 'scale', 'voice', 'octave', 'palette', 'swing']) $(id).addEventListener('change', event => {
   if (['root', 'scale', 'octave', 'voice'].includes(id)) releaseAll();
+  if(id==='root')resonance.stopDrone();
   config[id] = ['root', 'octave', 'swing'].includes(id) ? Number(event.target.value) : event.target.value;
   if (['root', 'scale', 'octave'].includes(id)) tuningReadout();
   if (id === 'scale' && flow.enabled) flow.phrase = accompanimentPhrase(config.scale);
@@ -360,6 +361,7 @@ function draw(ms){
   for(const r of rows)r.energy*=Math.exp(-dt*1.8);
   for(let i=pulses.length-1;i>=0;i--){pulses[i].age+=dt;if(pulses[i].age>2.4)pulses.splice(i,1);}
   const active=[...resonance.active].filter(h=>h.t<=audio.time&&audio.time<(h.cleanup??h.end));
+  $('clearLoop').disabled=loop.state==='empty'&&![...resonance.active].some(h=>isDrone(h.row));
   const strength=h=>Math.min(1,(audio.time-h.t)/h.attack)*.65*(audio.time>h.end?Math.exp(-5*(audio.time-h.end)/h.release):1);
   for(const h of active){if(!isDrone(h.row))strings[h.id].energy=Math.max(strings[h.id].energy,strength(h));rows[h.row].energy=Math.max(rows[h.row].energy,strength(h));}
   const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
