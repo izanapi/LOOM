@@ -260,8 +260,8 @@ test('interface is English-only and the three mix sliders live on the main surfa
 });
 
 
-test('Desert is selected both in the config and settings control', () => {
-  const h = harness(); assert.equal(h.config.palette, 'desert'); assert.equal(h.elements.get('palette').value, 'desert');
+test('Dasht-e Kavir is selected both in the config and settings control', () => {
+  const h = harness(); assert.equal(h.config.palette, 'salt'); assert.equal(h.elements.get('palette').value, 'salt');
 });
 test('recording automatically clicks for eight beats and stops without changing manual preference', async () => {
   const h = harness(); h.elements.get('loop').dispatch('click'); h.pointer('pointerdown', 1, 2); h.pointer('pointerup', 1, 2); await h.flush();

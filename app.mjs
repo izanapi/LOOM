@@ -6,7 +6,7 @@ import { LoomResonance } from './resonance.mjs?v=tonic-15';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
-const config={root:0,scale:'hijaz',voice:'qanun',octave:0,mode:'pluck',palette:'desert',bpm:92,swing:0,glow:55,showNotes:true,calm:false,metronome:false};
+const config={root:0,scale:'hijaz',voice:'qanun',octave:0,mode:'pluck',palette:'salt',bpm:92,swing:0,glow:55,showNotes:true,calm:false,metronome:false};
 const fingers=new Map(),pressedKeys=new Set(),pulses=[],visualQueue=[];
 const strings=Array.from({length:WARP_COUNT},(_,id)=>({id,energy:0,last:-10}));
 const rows=WEFTS.map(()=>({energy:0}));

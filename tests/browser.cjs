@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.__audioContext=this;}};
  });
  await page.goto(process.argv[2]||'http://127.0.0.1:8071');await page.waitForTimeout(300);
- assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=tonic-15')));
+ assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=kavir-16')));
  const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=tonic-15');return m.loomGeometry(390,500)});
  assert.ok(geometry.left>180&&geometry.weftTop>250,'Strings form a mirrored L');
  fs.mkdirSync('artifacts',{recursive:true});
