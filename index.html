@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090b18">
+  <meta name="description" content="An experimental crossed-string instrument. Pluck, hold and weave resonance into a two-bar loop.">
+  <title>LOOM</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="instrument">
+  <header>
+    <div class="brand"><h1>LOOM<span>HANABI ENGINE</span></h1></div>
+    <div class="header-actions">
+      <button id="randomize" aria-label="Randomize key, scale, voice and color" title="Randomize key, scale, voice and color"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><g fill="currentColor" stroke="none"><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/></g></svg></button>
+      <button id="mute" aria-label="Mute" aria-pressed="false">SOUND</button><button id="settingsOpen" aria-label="Settings" aria-haspopup="dialog">SETTINGS</button>
+    </div>
+  </header>
+  <section class="tuning" aria-label="Tuning">
+    <label>KEY<select id="root" aria-label="Key"></select></label>
+    <label class="scale-select">SCALE<select id="scale" aria-label="Scale"></select></label>
+    <label>VOICE<select id="voice" aria-label="Voice"></select></label>
+  </section>
+  <section class="stage" id="stage" aria-label="Strings">
+    <div class="stage-note"><span id="keyReadout" class="sr-only"></span><span id="noteReadout"></span></div>
+    <canvas id="canvas" tabindex="0" aria-label="Crossed strings. Tap or swipe to pluck. Hold an intersection to build resonance, then drag to weave. Multiple fingers can hold different crossings. Keyboard: A S D F G H J Q W E R T Y U play strings; 1 through 6 choose a resonance row."></canvas>
+    <p id="hint" role="status">PLUCK · HOLD · WEAVE</p>
+  </section>
+  <footer>
+    <section class="main-mix" aria-label="Mix">
+      <label>ECHO <output id="echoValue">30</output><input id="echo" type="range" min="0" max="100" value="30"></label>
+      <label>HALL <output id="hallValue">45</output><input id="hall" type="range" min="0" max="100" value="45"></label>
+      <label>VOLUME <output id="volumeValue">65</output><input id="volume" type="range" min="0" max="100" value="65"></label>
+    </section>
+    <div class="loom-strip"><span id="touchState">HOLD A CROSSING TO RESONATE</span><button id="flow" aria-label="Generative accompaniment" aria-pressed="false">FLOW</button></div>
+    <div class="transport">
+      <button id="tap" aria-label="Tap tempo"><span class="beat-dot" id="beatDot"></span>TAP</button>
+      <label class="tempo"><input id="bpm" type="number" min="40" max="200" value="92" inputmode="numeric" aria-label="Tempo in BPM"><small>BPM</small></label>
+      <button id="loop" class="loop-button" aria-label="Record a two-bar loop"><span id="loopIcon">●</span><span id="loopLabel">REC</span></button>
+      <button id="clearLoop" aria-label="Clear loop" disabled>CLEAR</button>
+    </div>
+    <div class="loop-track" aria-hidden="true"><div id="loopProgress"></div></div>
+    <div class="footer-note"><span id="loopStatus" role="status">2 BARS · CROSSINGS + NOTES</span></div>
+  </footer>
+</main>
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="sheet-header"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" aria-label="Close settings">CLOSE</button></div>
+  <div class="settings-grid">
+    <label>Octave<select id="octave"><option value="-1">−1</option><option value="0" selected>0</option><option value="1">＋1</option></select></label>
+    <label>Color<select id="palette"><option value="neon">Neon</option><option value="aurora" selected>Aurora</option><option value="ember">Ember</option></select></label>
+    <label>Decay <output id="decayValue">55</output><input id="decay" type="range" min="0" max="100" value="55"></label>
+    <label>Glow <output id="glowValue">70</output><input id="glow" type="range" min="0" max="100" value="70"></label>
+    <label>Groove<select id="swing"><option value="0">Straight</option><option value="0.16">Light swing</option><option value="0.3">Deep swing</option></select></label>
+  </div>
+  <div class="switches"><label><input id="metronome" type="checkbox"> Metronome</label><label><input id="showNotes" type="checkbox" checked> Note labels</label><label><input id="calm" type="checkbox"> Reduced motion</label></div>
+  <div class="guide"><p><strong>Pluck.</strong> Tap a vertical string, or brush across several. Faster strokes play louder. The strings rise in pitch from left to right.</p><p><strong>Weave.</strong> Hold for a moment to couple a vertical string to the nearest horizontal string. Keep holding and move to another crossing. The old resonance fades into the new one. Pull a little sideways for more intensity. Use several fingers to weave independent voices; sharing a horizontal string strengthens its resonance.</p><p><strong>The six threads.</strong> HARM opens upper partials. BLOOM grows a harmony from your scale. FIFTH adds an open fifth and octave. DUST scatters small grains of a plucked string. ECHO passes neighboring notes back and forth. ROOT draws a low tonic beneath your note. FIFTH and HARM use exact fifths, which can add color beyond the selected scale.</p><p><strong>Loop.</strong> Press REC, then play. Record two bars of plucks and crossings, including how long each crossing is held. Playback weaves them again alongside your fingers. PAUSE keeps the phrase; CLEAR erases it. Changing key or scale retunes the loop. Loops are kept until the page is reloaded.</p><p><strong>FLOW.</strong> An optional quiet accompaniment follows your tuning and tempo. It is not recorded.</p><p><strong>Space.</strong> ECHO is a stereo delay; HALL is a long room tail. These controls affect both plucks and held resonances.</p><p><strong>Keys.</strong> A S D F G H J, then Q W E R T Y U play the 14 strings. Hold a key to couple it. Keys 1–6 choose the horizontal string for your next note. Space controls the loop. Esc stops the sound.</p></div>
+</dialog>
+<script type="module" src="app.mjs"></script>
+</body>
+</html>
