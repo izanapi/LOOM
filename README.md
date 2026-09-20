@@ -1,10 +1,13 @@
 # LOOM
 
-An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, scale catalog, eight synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder, then replaces the circular playing surface with 14 melodic strings crossed by six resonance strings.
+An experimental crossed-string instrument, based on [izanapi/hanabi](https://github.com/izanapi/hanabi). LOOM keeps the original dark performance language, scale catalog, eight synthesized voices, stereo ECHO/HALL, mix controls, TAP/BPM and two-bar recorder. Its strings form an L: 14 melodic strings gathered on the right, six resonance strings gathered below, and a quiet empty corner at the upper left.
 
 ## Play
 
-- **Tap** a vertical string to pluck it. Brush horizontally to strum; a fast stroke is louder. Strings ascend from left to right, following KEY / SCALE. The default is C Insen with Koto.
+- **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Insen with Koto.
+- **Brush the lower-right corner** to catch short resonances alongside the plucks, without waiting for a hold. Diagonal sweeps pass through several colors. Fast bundled notes fan out over a few milliseconds; excitation and voice counts are bounded.
+- **Rake the horizontal strings on their own.** They pick up recent notes from the last eight seconds, or a vertical string another finger is holding, and return them as harmony, grains or echoes. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
+- **Use the empty corner as a resting place.** It makes no sound, but you can start a sweep there and move into the strings. Upper vertical strings pluck without selecting a hidden horizontal resonance.
 - **Hold** for 320 ms to couple the nearest crossing. The horizontal resonance blooms over about a second.
 - **Move while holding** to weave another crossing. The previous resonance fades over 600 ms while the next one rises. Moving to a new vertical string also gently plucks it.
 - **Pull sideways** within a crossing to strengthen the resonance. Multiple fingers work independently; holding the same horizontal string with several fingers strengthens their common resonance and produces slow beating.
@@ -25,7 +28,7 @@ The continuous strings carry wave packets outward from each contact. A bright kn
 
 ## Loop
 
-Press **REC**, then play. The first pluck starts two bars; a click guides recording. Plucks store string position and articulation. Couplings also store **vertical string, horizontal string, start step, strength and duration**. Onset is quantized to sixteenths; hold lengths retain fractional steps. Contacts held beyond the end are clipped to the loop boundary. The loop restarts automatically, reproducing both resonance and string motion under your live playing.
+Press **REC**, then play. The first pluck or horizontal brush starts two bars; a click guides recording. Plucks store string position and articulation. Couplings also store **vertical string, horizontal string, start step, strength and duration**. Brushed resonances retain their faster attack and their excitation position along the horizontal string. Onset is quantized to sixteenths; hold lengths retain fractional steps. Contacts held beyond the end are clipped to the loop boundary. The loop restarts automatically, reproducing both resonance and string motion under your live playing.
 
 **PAUSE** retains the phrase, **PLAY** restarts it, and **CLEAR** releases recorded resonances and erases the phrase. Key / scale / octave retune subsequent playback. VOICE changes plucks; horizontal resonance types retain their identities. Tempo is locked during recording. A tempo change affects subsequently scheduled events; an already sounding held loop voice completes its scheduled release. Loops live in page memory and disappear on reload.
 

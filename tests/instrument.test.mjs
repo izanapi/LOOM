@@ -72,7 +72,8 @@ function harness() {
     async flush() { await Promise.resolve(); await Promise.resolve(); },
     advance(seconds) { for (let time = 0; time < seconds; time += .025) { now += 25; api.audio.context?.advance(.025); api.schedule(); frame(now); } },
     pointer(type, id, string, row = 2) {
-      elements.get('canvas').dispatch(type, { pointerId: id, clientX: loom.warpX(string,api.geometry), clientY: loom.weftY(row,api.geometry), timeStamp: now, pointerType: 'touch' });
+      const g=api.geometry;
+      elements.get('canvas').dispatch(type, { pointerId: id, clientX: string===null?(g.weftLeft+g.left)/2:loom.warpX(string,g), clientY: row===null?g.top+10:loom.weftY(row,g), timeStamp: now, pointerType: 'touch' });
     },
   };
 }
@@ -234,7 +235,7 @@ test('weaving and multitouch preserve independent contacts and release tails', a
 test('loop records crossing identity and duration, replays it, and clears its voices', async () => {
   const h=harness();h.elements.get('loop').dispatch('click');await h.flush();h.pointer('pointerdown',1,3,1);h.advance(.9);
   h.pointer('pointermove',1,5,5);h.advance(.6);h.pointer('pointerup',1,5,5);
-  const woven=h.loop.events.filter(e=>e.type==='weave');assert.equal(woven.length,2);
+  const woven=h.loop.events.filter(e=>e.type==='weave'&&e.gesture!=='brush');assert.equal(woven.length,2);
   assert.equal(woven[0].row,1);assert.equal(woven[1].row,5);assert.ok(woven.every(e=>e.duration>1));
   h.advance(4.2);assert.equal(h.loop.state,'playing');assert.ok([...h.resonance.active].some(h=>h.source==='loop'));
   h.elements.get('clearLoop').dispatch('click');assert.equal(h.resonance.active.size,0);assert.equal(h.loop.events.length,0);h.pause();
@@ -261,4 +262,28 @@ test('rapid reweaving bounds resonance groups without stealing a resting live fi
     assert.ok(h.resonance.active.size<=24);assert.equal(h.resonance.active.has(anchor),true);
   }
   h.releaseAll();h.advance(1);assert.equal(h.resonance.active.size,0);h.pause();
+});
+
+test('empty space stays silent, but a sweep starting there can catch the string bank', async () => {
+  const h=harness();h.pointer('pointerdown',1,null,null);await h.flush();h.advance(.5);
+  assert.equal(h.audio.context,null);assert.equal(h.resonance.active.size,0);
+  h.pointer('pointermove',1,10,null);await h.flush();assert.ok(h.audio.calls.length>=10);
+  h.advance(.5);assert.equal(h.resonance.active.size,0,'upper strings do not select an invisible horizontal string');h.pause();
+});
+test('sweeping the lower strings catches the recent melody and records the brush', async () => {
+  const h=harness();h.pointer('pointerdown',1,8,null);await h.flush();h.pointer('pointerup',1,8,null);
+  h.elements.get('loop').dispatch('click');await h.flush();
+  h.pointer('pointerdown',2,null,0);h.advance(.08);h.pointer('pointermove',2,null,5);h.pointer('pointerup',2,null,5);
+  const brush=h.loop.events.filter(e=>e.gesture==='brush');
+  assert.equal(new Set(brush.map(e=>e.row)).size,6);assert.ok(brush.every(e=>e.id===8));
+  assert.ok(brush.every(e=>e.attack===.055&&e.duration>0));assert.equal(h.loop.state,'recording');
+  h.advance(6);assert.equal(h.loop.state,'playing');assert.ok([...h.resonance.active].some(h=>h.source==='loop'&&h.attack===.055));
+  h.elements.get('clearLoop').dispatch('click');assert.equal(h.resonance.active.size,0);h.pause();
+});
+test('a fast diagonal stroke excites notes and short resonances without a hold', async () => {
+  const h=harness();h.elements.get('loop').dispatch('click');await h.flush();
+  h.pointer('pointerdown',1,0,0);h.pointer('pointermove',1,13,5);h.pointer('pointerup',1,13,5);
+  assert.ok(h.audio.calls.length>=14);assert.ok(h.loop.events.filter(e=>e.gesture==='brush').length>=6);
+  assert.equal([...h.resonance.active].filter(h=>h.source==='live').length,0);h.advance(2);
+  assert.equal(h.resonance.active.size,0);h.pause();
 });

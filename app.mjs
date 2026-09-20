@@ -1,7 +1,7 @@
 import { NOTES, SCALES, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs';
 import { InstrumentAudio } from './audio.mjs';
 import { VOICES } from './voices.mjs';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, degreeMidi, resonanceNotes } from './loom.mjs';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes } from './loom.mjs';
 import { LoomResonance } from './resonance.mjs';
 
 const $=id=>document.getElementById(id);
@@ -10,6 +10,7 @@ const config={root:0,scale:'insen',voice:'koto',octave:0,palette:'aurora',bpm:92
 const fingers=new Map(),pressedKeys=new Set(),pulses=[],visualQueue=[];
 const strings=Array.from({length:WARP_COUNT},(_,id)=>({id,energy:0,last:-10}));
 const rows=WEFTS.map(()=>({energy:0}));
+const memory=[],brushAt=WEFTS.map(()=>-10);
 const clock={timer:null,step:0,next:0};
 const flow={enabled:false,startStep:0,cycle:-1,phrase:[]};
 const loop={state:'empty',events:[],startStep:0,startTime:0,visibleStep:0};
@@ -45,10 +46,10 @@ function colorFor(id,light=70,alpha=1){
   return `hsla(${hue},65%,${light}%,${alpha})`;
 }
 function rowColor(row,alpha=1){return `hsla(${WEFTS[row].hue},65%,72%,${alpha})`;}
-function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5){
+function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x=null){
   strings[id].energy=Math.max(strings[id].energy,strength);
   if(row!==null) rows[row].energy=Math.max(rows[row].energy,strength);
-  pulses.push({id,row,y:row!==null?weftY(row,geometry):y,age:0,strength,fromLoop});if(pulses.length>140)pulses.shift();
+  pulses.push({id,row,y:row!==null?weftY(row,geometry):y,x,age:0,strength,fromLoop});if(pulses.length>140)pulses.shift();
   $('noteReadout').textContent=noteName(midi(id))+(row!==null?' × '+WEFTS[row].name:'')+(fromLoop?' / LOOP':'');lastNoteTime=frameTime;
 }
 function setLoopState(state){
@@ -76,14 +77,35 @@ function record(event,when=audio.time){
 }
 function emit(id,velocity=.65,brightness=.6,when=audio.time,source='live',interval=0,y=geometry.height*.5){
   id=((id%WARP_COUNT)+WARP_COUNT)%WARP_COUNT;if(!audio.context)return;
+  if(source==='live')hint('BRUSH THE CORNER · HOLD TO WEAVE');
   if(source==='live')record({type:'pluck',id,velocity,brightness,interval,y:(y-geometry.top)/(geometry.bottom-geometry.top)},when);
   audio.play(midi(id)+interval,{voice:source==='flow'?'velvet':config.voice,velocity,brightness,when,pan:(id/(WARP_COUNT-1)-.5)*1.1});
   const visual={time:when,id,strength:velocity,fromLoop:source==='loop',row:null,y};
   if(when>audio.time+.015)visualQueue.push(visual);else visualize(id,velocity,source==='loop',null,y);
 }
-function pluck(id,velocity,brightness,y){
+function pluck(id,velocity,brightness,y,when=audio.time){
+  if(id===null)return;
   const now=performance.now()/1000;if(now-strings[id].last<.035)return;
-  strings[id].last=now;emit(id,velocity,brightness,audio.time,'live',0,y);
+  strings[id].last=now;emit(id,velocity,brightness,when,'live',0,y);
+  const old=memory.findIndex(n=>n.id===id);if(old>=0)memory.splice(old,1);
+  memory.push({id,time:audio.time});if(memory.length>5)memory.shift();
+}
+function brushWeft(row,velocity,primary=null,offset=0,originX=null){
+  if(row===null||!audio.context||audio.time-brushAt[row]<.12)return;
+  hint('BRUSH THE CORNER · HOLD TO WEAVE');
+  brushAt[row]=audio.time;
+  const held=[...fingers.values()].filter(f=>f.id!==null&&f.handle).map(f=>f.id);
+  const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
+  const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
+  if(!seeds.length)seeds.push(0,4);
+  const chosen=seeds.slice(0,[3,4,5].includes(row)?1:2);
+  chosen.forEach((id,i)=>{
+    const when=audio.time+offset+i*.035,duration=row===4?.95:.52+velocity*.38,level=velocity*.52;
+    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,source:'brush',pan:(id/13-.5)*.9});
+    const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
+    if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
+    visualQueue.push({time:when,id,strength:.38+velocity*.2,row,y:weftY(row,geometry),x:originX,fromLoop:false,brush:true});
+  });
 }
 function couple(finger,when=audio.time){
   if(finger.id===null||finger.row===null||finger.handle)return;
@@ -100,7 +122,11 @@ function uncouple(finger){
   }
   if(finger.handle)resonance.stop(finger.handle);finger.handle=null;
 }
-function releaseAll(){for(const f of fingers.values())uncouple(f);fingers.clear();pressedKeys.clear();}
+function releaseAll(){
+  for(const f of fingers.values())uncouple(f);fingers.clear();pressedKeys.clear();
+  resonance.stopSource('brush');
+  for(let i=visualQueue.length-1;i>=0;i--)if(visualQueue[i].brush)visualQueue.splice(i,1);
+}
 function updateFingers(){
   for(const f of fingers.values()){
     if(f.id===null)continue;
@@ -136,8 +162,8 @@ function schedule(){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
-          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,when,level:e.velocity*.8,duration:length*duration,source:'loop',pan:(e.id/13-.5)*.9});
-          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),fromLoop:true});
+          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:(e.id/13-.5)*.9});
+          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:e.x==null?null:e.x*geometry.width,fromLoop:true});
         }else emit(e.id,e.velocity*.8,e.brightness,when,'loop',e.interval||0,geometry.top+e.y*(geometry.bottom-geometry.top));
       }
     }
@@ -149,21 +175,39 @@ function eventPoint(e){const r=canvas.getBoundingClientRect();return{x:e.clientX
 const brightnessAt=p=>clamp(.85-(p.y-geometry.top)/(geometry.bottom-geometry.top)*.5,.25,.9);
 canvas.addEventListener('pointerdown',e=>{
   if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();
-  const p=eventPoint(e),hit=intersection(p,geometry);if(!hit||fingers.size>=10)return;
-  startAudio();canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});
-  const f={...p,...hit,velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
-  fingers.set(e.pointerId,f);pluck(f.id,f.velocity,f.brightness,p.y);
+  const p=eventPoint(e),hit=intersection(p,geometry);if(fingers.size>=10)return;
+  canvas.classList.add('pointer-playing');
+  if(hit)startAudio();canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});
+  const f={...p,id:null,row:null,...hit,velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
+  fingers.set(e.pointerId,f);
+  if(f.id!==null)pluck(f.id,f.velocity,f.brightness,p.y);
+  else if(f.row!==null)brushWeft(f.row,f.velocity,null,0,p.x);
 });
 canvas.addEventListener('pointermove',e=>{
   const f=fingers.get(e.pointerId);if(!f)return;e.preventDefault();
   const samples=e.getCoalescedEvents?.();
   for(const sample of samples?.length?samples:[e]){
-    const p=eventPoint(sample),hit=intersection(p,geometry,f.id===null?null:f);
+    const p=eventPoint(sample),hit=intersection(p,geometry,f);
     const speed=Math.hypot(p.x-f.x,p.y-f.y)/Math.max(8,p.time-f.time),velocity=clamp(.42+speed*.25,.42,.95);
-    if(!hit){uncouple(f);Object.assign(f,p,{id:null,row:null,started:audio.time});continue;}
+    const warps=crossedWarps(f,p,geometry),wefts=crossedWefts(f,p,geometry);
+    if((hit||warps.length||wefts.length)&&!audio.context)startAudio();
+    // A broad sweep catches every crossed filament, including a fast move that
+    // ends back in the quiet space. Spread bundled events into a tiny cascade.
+    if(!f.coupled){
+      warps.forEach((crossing,i)=>{
+        pluck(crossing.id,velocity/Math.sqrt(1+warps.length*.08),brightnessAt(p),crossing.y,audio.time+i*.008);
+        if(crossing.row!==null)brushWeft(crossing.row,velocity,crossing.id,i*.008);
+      });
+      wefts.forEach((crossing,i)=>brushWeft(crossing.row,velocity,crossing.id,i*.022,crossing.x));
+    }
+    if(!hit){uncouple(f);Object.assign(f,p,{id:null,row:null,started:audio.time,coupled:false});continue;}
     const changed=hit.id!==f.id||hit.row!==f.row;
-    if(!f.coupled){for(const crossing of crossedWarps(f,p,geometry))pluck(crossing.id,velocity,brightnessAt(p),crossing.y);}
-    if(changed&&f.coupled){uncouple(f);if(hit.id!==f.id)pluck(hit.id,velocity*.75,brightnessAt(p),p.y);}
+    if(changed&&f.coupled){
+      uncouple(f);
+      warps.forEach((crossing,i)=>pluck(crossing.id,velocity*.65,brightnessAt(p),crossing.y,audio.time+i*.008));
+      wefts.forEach((crossing,i)=>{if(crossing.row!==hit.row)brushWeft(crossing.row,velocity*.65,crossing.id,i*.022,crossing.x);});
+    }
+    if(f.id===null&&f.row===null)f.started=audio.time;
     Object.assign(f,p,hit,{velocity,brightness:brightnessAt(p)});
     if(changed&&f.coupled)couple(f);
   }
@@ -171,9 +215,11 @@ canvas.addEventListener('pointermove',e=>{
 function release(e){const f=fingers.get(e.pointerId);if(f)uncouple(f);fingers.delete(e.pointerId);}
 for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release);
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('blur',()=>canvas.classList.remove('pointer-playing'));
 const keyboard=['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyQ','KeyW','KeyE','KeyR','KeyT','KeyY','KeyU'];
 let keyboardRow=2;
 canvas.addEventListener('keydown',e=>{
+  canvas.classList.remove('pointer-playing');
   const id=keyboard.indexOf(e.code);
   if(/^Digit[1-6]$/.test(e.code)){keyboardRow=Number(e.code.slice(-1))-1;hint('Hold a note key × '+WEFTS[keyboardRow].name);}
   else if(id>=0){e.preventDefault();if(e.repeat||pressedKeys.has(e.code))return;pressedKeys.add(e.code);startAudio();
@@ -244,7 +290,7 @@ $('settingsClose').addEventListener('click', () => $('settings').close());
 $('settings').addEventListener('click', event => { if (event.target === $('settings')) { const r = event.target.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) event.target.close(); } });
 function pause() {
   flow.enabled = false; $('flow').setAttribute('aria-pressed', 'false');
-  generation++; releaseAll(); visualQueue.length = 0;
+  generation++; releaseAll(); visualQueue.length = 0; memory.length=0; brushAt.fill(-10);
   if (clock.timer !== null) clearInterval(clock.timer); clock.timer = null;
   if (loop.state === 'recording') { loop.events = []; setLoopState('empty'); }
   else if (loop.state === 'armed') setLoopState('empty');
@@ -263,27 +309,24 @@ function draw(ms){
   const dt=Math.min(.05,(ms-lastFrame)/1000||.016);lastFrame=ms;frameTime=ms/1000;
   const g=geometry,isCalm=calm(),glow=config.glow/100;
   ctx.clearRect(0,0,g.width,g.height);
-  for(let i=visualQueue.length-1;i>=0;i--){const e=visualQueue[i];if(e.time<=audio.time){visualize(e.id,e.strength,e.fromLoop,e.row,e.y);visualQueue.splice(i,1);}}
+  for(let i=visualQueue.length-1;i>=0;i--){const e=visualQueue[i];if(e.time<=audio.time){visualize(e.id,e.strength,e.fromLoop,e.row,e.y,e.x??null);visualQueue.splice(i,1);}}
   for(const s of strings)s.energy*=Math.exp(-dt*2.7);
   for(const r of rows)r.energy*=Math.exp(-dt*1.8);
   for(let i=pulses.length-1;i>=0;i--){pulses[i].age+=dt;if(pulses[i].age>2.4)pulses.splice(i,1);}
   const active=[...resonance.active].filter(h=>h.t<=audio.time&&audio.time<h.end);
-  const strength=h=>Math.min(1,(audio.time-h.t)/.85)*.65;
+  const strength=h=>Math.min(1,(audio.time-h.t)/h.attack)*.65;
   for(const h of active){strings[h.id].energy=Math.max(strings[h.id].energy,strength(h));rows[h.row].energy=Math.max(rows[h.row].energy,strength(h));}
   const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
   // Two understated bridges anchor real continuous filaments, not a pad grid.
   ctx.strokeStyle='#96b4bd2b';ctx.lineWidth=1;
   line(g.left-12,g.top-7,g.right+12,g.top-7);line(g.left-12,g.bottom+7,g.right+12,g.bottom+7);
-  ctx.font='10px ui-monospace,monospace';ctx.textAlign='left';ctx.fillStyle='#8192a8';
-  ctx.fillText('WARP / 14',g.left,19);
-  ctx.textAlign='right';ctx.fillText('WEFT / 06',g.right,19);
   // The wave packet expands from the touched crossing in both directions.
   function displacement(axis,index,pos){
     if(isCalm)return 0;
     let v=0;
     for(const p of pulses){
       if(axis==='v'?p.id!==index:p.row!==index)continue;
-      const origin=axis==='v'?p.y:warpX(p.id,g),d=Math.abs(pos-origin),front=p.age*470;
+      const origin=axis==='v'?p.y:(p.x??warpX(p.id,g)),d=Math.abs(pos-origin),front=p.age*470;
       const packet=Math.exp(-(((d-front)/55)**2))*Math.exp(-p.age*1.4);
       v+=Math.sin(d*.085-p.age*47)*packet*p.strength*6;
     }
@@ -300,10 +343,10 @@ function draw(ms){
     for(let y=g.top;y<=g.bottom;y+=4){const envelope=Math.sin(Math.PI*(y-g.top)/(g.bottom-g.top));ctx.lineTo(x+displacement('v',s.id,y)*envelope,y);}ctx.lineTo(x,g.bottom);ctx.stroke();ctx.shadowBlur=0;
     for(const y of [g.top-7,g.bottom+7]){ctx.fillStyle=colorFor(s.id,75,.6);ctx.beginPath();ctx.arc(x,y,1.6,0,Math.PI*2);ctx.fill();}
     if(config.showNotes){ctx.font=`${g.width<500?9:11}px ui-monospace,monospace`;ctx.textAlign='center';ctx.fillStyle=e>.12?colorFor(s.id,84):'#96a3b5';
-      ctx.fillText(noteName(midi(s.id)),x,g.bottom+25+(g.width<420&&s.id%2?10:0));}
+      ctx.fillText(noteName(midi(s.id)),x,g.bottom+24+(g.dx<24&&s.id%2?12:0));}
   }
   for(let row=0;row<WEFTS.length;row++){
-    const y=weftY(row,g),e=rows[row].energy,start=g.left-18,end=g.right+10;
+    const y=weftY(row,g),e=rows[row].energy,start=g.weftLeft,end=g.right+10;
     // Draw the weft as a double filament; the slight over/under deflection makes
     // the crossing legible without boxes, filled cells or button hit regions.
     for(let ply=0;ply<2;ply++){
@@ -313,7 +356,7 @@ function draw(ms){
       for(let x=start;x<=end;x+=3){const envelope=Math.sin(Math.PI*(x-start)/(end-start));const weave=Math.sin((x-g.left)/g.dx*Math.PI)*.6;
         ctx.lineTo(x,y+ply*2+weave+displacement('h',row,x)*envelope);}ctx.stroke();ctx.shadowBlur=0;
     }
-    ctx.fillStyle=rowColor(row,e>.1?.95:.66);ctx.textAlign='left';ctx.font='9px ui-monospace,monospace';ctx.fillText(WEFTS[row].name,5,y-8);
+    ctx.fillStyle=rowColor(row,e>.1?.95:.66);ctx.textAlign='left';ctx.font='9px ui-monospace,monospace';ctx.fillText(WEFTS[row].name,10,y+3);
     for(const x of [start,end]){ctx.strokeStyle=rowColor(row,.45);ctx.lineWidth=1;line(x,y-3,x,y+4);}
   }
   // Contact knots: white = current fingers; a fine colored ring = recorded hand.
@@ -323,13 +366,15 @@ function draw(ms){
     ctx.lineWidth=h.source==='loop'?.8:1.2;ctx.beginPath();ctx.arc(x,y,4+a*3,0,Math.PI*2);ctx.stroke();
     ctx.fillStyle=rowColor(h.row,.4+a*.5);ctx.beginPath();ctx.arc(x,y,1.7,0,Math.PI*2);ctx.fill();
   }
-  for(const f of fingers.values())if(f.id!==null){
+  for(const f of fingers.values())if(f.id!==null&&f.row!==null){
     const x=warpX(f.id,g),y=weftY(f.row,g),progress=Math.min(1,(audio.time-f.started)/HOLD_SECONDS);
     if(!f.coupled){ctx.strokeStyle='#dafff6a0';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,7,-Math.PI/2,-Math.PI/2+Math.PI*2*progress);ctx.stroke();}
     if(Number.isFinite(f.x)&&!isCalm){ctx.strokeStyle='#dffff73a';ctx.lineWidth=.7;line(x,y,f.x,f.y);}
   }
   const live=active.filter(h=>h.source==='live');
-  $('touchState').textContent=live.length?`${live.length} ${live.length===1?'CROSSING':'CROSSINGS'} · ${[...new Set(live.map(h=>WEFTS[h.row].name))].join(' / ')}`:'HOLD A CROSSING TO RESONATE';
+  const brushing=active.filter(h=>h.source==='brush');
+  $('touchState').textContent=live.length?`${live.length} ${live.length===1?'CROSSING':'CROSSINGS'} · ${[...new Set(live.map(h=>WEFTS[h.row].name))].join(' / ')}`:
+    brushing.length?'BRUSH · '+new Set(brushing.map(h=>h.row)).size+' THREADS':'SWEEP THROUGH THE STRINGS';
   if(audio.context&&clock.timer!==null){
     const duration=stepSeconds(config.bpm),visibleStep=clock.step-(clock.next-audio.time)/duration;
     $('beatDot').classList.toggle('on',((visibleStep%4)+4)%4<.55);
