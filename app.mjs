@@ -1,7 +1,7 @@
 import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=drift-10';
 import { InstrumentAudio } from './audio.mjs?v=drift-10';
 import { VOICES } from './voices.mjs?v=drift-10';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=drift-10';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneX } from './loom.mjs?v=drone-left-13';
 import { LoomResonance } from './resonance.mjs?v=drift-10';
 
 const $=id=>document.getElementById(id);

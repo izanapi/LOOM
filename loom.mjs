@@ -80,7 +80,7 @@ export const wovenChord = id => [0,2,4].map(offset=>(id+offset)%WARP_COUNT);
 export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','octave','root','drone'].includes(WEFTS[row].kind);
 export const weftRelease = row => WEFTS[row].kind==='drone'?7:isHarmony(row)?.6:3.5;
 export const isDrone = row => WEFTS[row]?.kind==='drone';
-export const droneX = g => (g.weftLeft+g.right+10)/2;
+export const droneX = g => (g.weftLeft+g.left)/2;
 // Depth is measured along a string, never against the moving wave itself.
 export function warpLayer(y,g,previous=0){
   const depth=(y-g.top)/(g.bottom-g.top),h=.018;
