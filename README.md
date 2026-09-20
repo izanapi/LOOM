@@ -6,7 +6,7 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 
 - **Tap** a vertical string to pluck it. The closely spaced right-hand strings make a broad stroke catch many notes. Strings ascend from left to right, following KEY / SCALE. The default is C Hijaz with Qanun and the warm Rub al Khali gradient.
 - **Brush the lower-right corner** to catch short resonances alongside the plucks, without waiting for a hold. Diagonal sweeps pass through several colors. Fast bundled notes fan out over a few milliseconds; excitation and voice counts are bounded.
-- **Rake the horizontal strings on their own.** Harmony rows retain the last explicitly played vertical string without an expiry. A held harmony retunes with a release crossfade when that anchor changes. Texture brushes can catch recent notes from the last eight seconds. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
+- **Rake the horizontal strings on their own.** Harmony rows except DRONE retain the last explicitly played vertical string without an expiry. A held harmony retunes with a release crossfade when that anchor changes. Texture brushes can catch recent notes from the last eight seconds. With no recent notes, a small tonic-based seed lets the lower strings sound immediately.
 - **Use the empty corner as a resting place.** It makes no sound, but you can start a sweep there and move into the strings. Upper vertical strings pluck without selecting a hidden horizontal resonance.
 - **Hold** for 320 ms to couple the nearest crossing. The horizontal resonance blooms over about a second.
 - **Move while holding** to weave another crossing. Harmony releases fade over 600 ms; texture releases last 3.5 seconds and DRONE releases last 7 seconds while the next crossing rises. Moving to a new vertical string also gently plucks it.
@@ -26,7 +26,7 @@ An experimental crossed-string instrument, based on [izanapi/hanabi](https://git
 | ECHO | Neighboring notes returning at dotted-eighth intervals |
 | ROOT | Last vertical note and its lower octave |
 | MIRAGE | Reversed, windowed string grains |
-| DRONE | Deep pitch-class foundation in the C1–B1 register, with an octave |
+| DRONE | Independent KEY root in the C1–B1 register, with scale frets rising an octave to the right |
 
 Texture and pitch threads alternate within the same lower band. FIFTH and HARM deliberately introduce exact fifths. Other scale-degree harmonies preserve fractional MIDI pitches. All synthesis is local.
 
@@ -36,7 +36,9 @@ Hijaz, Hijazkar, Nahawand, Nikriz, Kurd, Rast and Bayati lead the scale picker, 
 
 Qanun uses slightly detuned plucked courses; Santur adds a bright hammer-like attack; Oud has a short wooden body. They are synthesized interpretations, not samples. Existing voices remain available.
 
-SETTINGS offers Rub al Khali, Wadi Rum, Negev, Siwa, Zagros, Sinai, Lut and Neon. Four-stop gradients run along and across both string families. Warm gradients travel through pink, red, orange and gold. Only the loom changes color; the original dark navy UI and cyan controls stay fixed.
+SETTINGS offers ten three-color gradients: Rub al Khali (pink/orange/gold), Wadi Rum (coral/orchid/periwinkle), Petra (copper/cream/turquoise), Siwa (mint/lime/sand), Zagros (blue/violet/blush), Danakil (red/amber/chartreuse), Pamukkale (cyan/white/lilac), Hormuz (turquoise/purple/rose), Dasht-e Kavir (ivory/blue/pink) and Wadi Qamar (indigo/teal/moonlight). Explicit RGB stops keep these color combinations distinct. Only the loom changes color; the original dark navy UI and cyan controls stay fixed.
+
+**DRONE** is the thicker bottom course. Its leftmost fret always sounds KEY in a deep register, independent of the last vertical note and the octave selector. Frets progress through SCALE to the octave on the right, including quarter tones. Holding and sliding crossfades over 300 ms; releasing retains the seven-second tail. Playing the bass course does not pluck the crossing vertical strings. Fret positions are recorded with held and brushed resonances and horizontal ARP events; playback transposes with KEY and retunes with SCALE.
 
 The continuous strings carry wave packets outward from each contact. Release tails keep the corresponding strings softly vibrating until the sound fades. A bright knot indicates a held crossing; fine colored rings mark the recorded hand during playback. Reduced motion keeps brightness feedback while removing displacement. There are no decorative particles or pad cells.
 

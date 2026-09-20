@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=sustain-6';
-import { InstrumentAudio } from './audio.mjs?v=sustain-6';
-import { VOICES } from './voices.mjs?v=sustain-6';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals } from './loom.mjs?v=sustain-6';
-import { LoomResonance } from './resonance.mjs?v=sustain-6';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=prism-7';
+import { InstrumentAudio } from './audio.mjs?v=prism-7';
+import { VOICES } from './voices.mjs?v=prism-7';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneFret, droneX } from './loom.mjs?v=prism-7';
+import { LoomResonance } from './resonance.mjs?v=prism-7';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -52,14 +52,15 @@ function stringGradient(axis,index,alpha){
   if(vertical){
     for(const [at,color] of [[0,0],[.459,.15],[.46,.48],[.759,.61],[.76,.86],[1,1]])
       gradient.addColorStop(at,paletteColor(config.palette,color*.88+bank*.12,at>=.76?77:70,alpha));
-  }else for(let i=0;i<=4;i++)gradient.addColorStop(i/4,paletteColor(config.palette,bank*.4+i/4*.6,70,alpha));
+  }else for(let i=0;i<=4;i++)gradient.addColorStop(i/4,paletteColor(config.palette,i/4,70+bank*3,alpha));
   return gradient;
 }
 function visualize(id,strength=.7,fromLoop=false,row=null,y=geometry.height*.5,x=null){
-  strings[id].energy=Math.max(strings[id].energy,strength);
+  if(!isDrone(row))strings[id].energy=Math.max(strings[id].energy,strength);
   if(row!==null) rows[row].energy=Math.max(rows[row].energy,strength);
   pulses.push({id,row,y:row!==null?weftY(row,geometry):y,x,age:0,strength,fromLoop});if(pulses.length>140)pulses.shift();
-  $('noteReadout').textContent=noteName(midi(id))+(row!==null?' × '+WEFTS[row].name:'')+(fromLoop?' / LOOP':'');lastNoteTime=frameTime;
+  const pitch=isDrone(row)?resonanceNotes(0,row,config,droneFret(x,geometry,config.scale))[0]:midi(id);
+  $('noteReadout').textContent=noteName(pitch)+(row!==null?' × '+WEFTS[row].name:'')+(fromLoop?' / LOOP':'');lastNoteTime=frameTime;
 }
 function setLoopState(state){
   loop.state=state;
@@ -107,12 +108,12 @@ function verticalNote(id,velocity,brightness,when,source,y,layer=warpLayer(y,geo
   const levels=[1,.42,.32],normal=Math.sqrt(intervals.reduce((sum,_,i)=>sum+levels[i]**2,0));
   intervals.forEach((interval,i)=>emit(id,velocity*levels[i]/normal,brightness,when,source,interval,y));
 }
-function anchorFor(f){return isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
-function threadNote(id,row,index,velocity,when,source='arp'){
-  const notes=resonanceNotes(id,row,config),note=notes[index%notes.length];
-  audio.play(note,{voice:config.voice,velocity,brightness:.55,when,pan:(id/13-.5)*.9});
-  if(source==='arp')record({type:'threadNote',id,row,index,velocity},when);
-  visualQueue.push({time:when,id,row,strength:velocity+.15,y:weftY(row,geometry),fromLoop:source==='loop'});
+function anchorFor(f){return isDrone(f.row)?0:isHarmony(f.row)?lastVertical:(f.id??lastVertical);}
+function threadNote(id,row,index,velocity,when,source='arp',fret=0){
+  const notes=resonanceNotes(id,row,config,fret),note=notes[index%notes.length];
+  audio.play(note,{voice:config.voice,velocity,brightness:.55,when,pan:isDrone(row)?0:(id/13-.5)*.9});
+  if(source==='arp')record({type:'threadNote',id,row,index,velocity,fret},when);
+  visualQueue.push({time:when,id,row,strength:velocity+.15,y:weftY(row,geometry),x:isDrone(row)?droneX(fret,geometry,config.scale):null,fromLoop:source==='loop'});
 }
 function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   if(row===null||!audio.context||audio.time-brushAt[row]<.12)return;
@@ -122,11 +123,12 @@ function brushWeft(row,velocity,primary=null,offset=0,originX=null){
   const recent=memory.filter(n=>audio.time-n.time<8).map(n=>n.id).reverse();
   const seeds=[...new Set([primary,...held,...recent].filter(id=>id!==null))];
   if(!seeds.length)seeds.push(0,4);
-  const chosen=isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
+  const fret=isDrone(row)?droneFret(originX,geometry,config.scale):0;
+  const chosen=isDrone(row)?[0]:isHarmony(row)?[lastVertical]:seeds.slice(0,['dust','mirage','echo'].includes(WEFTS[row].kind)?1:2);
   chosen.forEach((id,i)=>{
     const when=audio.time+offset+i*.035,duration=WEFTS[row].kind==='drone'?2.8:WEFTS[row].kind==='echo'?.95:.52+velocity*.38,level=velocity*.52;
-    resonance.start(resonanceNotes(id,row,config),row,{id,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:(id/13-.5)*.9});
-    const event=record({type:'weave',gesture:'brush',id,row,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
+    resonance.start(resonanceNotes(id,row,config,fret),row,{id,fret,when,level,duration,attack:.055,voice:config.voice,source:'brush',pan:isDrone(row)?0:(id/13-.5)*.9});
+    const event=record({type:'weave',gesture:'brush',id,row,fret,velocity:level,duration:duration/stepSeconds(config.bpm),attack:.055,x:originX===null?null:originX/geometry.width},when);
     if(event)event.duration=Math.min(event.duration,LOOP_STEPS-event.step);
     visualQueue.push({time:when,id,strength:.38+velocity*.2,row,y:weftY(row,geometry),x:originX,fromLoop:false,brush:true});
   });
@@ -135,17 +137,17 @@ function couple(finger,when=audio.time){
   if(finger.row===null||finger.handle)return;
   const id=anchorFor(finger);
   finger.coupled=true;finger.joined=when;
-  finger.handle=resonance.start(resonanceNotes(id,finger.row,config),finger.row,{id,voice:config.voice,level:finger.velocity,pan:(id/13-.5)*.9});
-  finger.record=record({type:'weave',id,row:finger.row,velocity:finger.velocity,duration:1},when);
-  visualize(id,.75,false,finger.row);
+  finger.handle=resonance.start(resonanceNotes(id,finger.row,config,finger.fret??0),finger.row,{id,fret:finger.fret??0,voice:config.voice,level:finger.velocity,pan:isDrone(finger.row)?0:(id/13-.5)*.9});
+  finger.record=record({type:'weave',id,row:finger.row,fret:finger.fret??0,velocity:finger.velocity,duration:1},when);
+  visualize(id,.75,false,finger.row,undefined,isDrone(finger.row)?droneX(finger.fret??0,geometry,config.scale):null);
 }
-function uncouple(finger){
+function uncouple(finger,release=null){
   if(finger.record){
     const d=stepSeconds(config.bpm),end=loop.startTime+LOOP_STEPS*d;
     finger.record.duration=clamp((Math.min(audio.time,end)-finger.joined)/d,.12,LOOP_STEPS-finger.record.step);
     finger.record=null;
   }
-  if(finger.handle)resonance.stop(finger.handle);finger.handle=null;
+  if(finger.handle)resonance.stop(finger.handle,audio.time,release);finger.handle=null;
 }
 function releaseAll(){
   for(const f of fingers.values())uncouple(f);fingers.clear();pressedKeys.clear();
@@ -179,7 +181,7 @@ function schedule(){
     if(config.mode==='arp'&&step%2===0){
       for(const f of fingers.values())if(f.id!==null||f.row!==null){
         const index=[0,1,2,1][Math.floor(step/2)%4];
-        if(f.row!==null)threadNote(anchorFor(f),f.row,index,f.velocity*.55,when);
+        if(f.row!==null)threadNote(anchorFor(f),f.row,index,f.velocity*.55,when,'arp',f.fret??0);
         else verticalNote(wovenChord(f.id)[index],f.velocity*.65,f.brightness??.6,when,'arp',f.y??geometry.top,f.layer??0);
       }
     }
@@ -191,13 +193,13 @@ function schedule(){
     if(loop.state==='playing'||(loop.state==='recording'&&step>=loop.startStep+LOOP_STEPS)){
       const slot=((step-loop.startStep)%LOOP_STEPS+LOOP_STEPS)%LOOP_STEPS;
       for(const e of loop.events)if(e.step===slot){
-        if(e.type==='threadNote')threadNote(e.id,e.row,e.index,e.velocity*.8,when,'loop');
+        if(e.type==='threadNote')threadNote(e.id,e.row,e.index,e.velocity*.8,when,'loop',e.fret??0);
         else if(e.type==='weave'){
           let length=e.duration;
           // A contact still down at the recording boundary is clipped to the seam.
           if(loop.state==='recording' && [...fingers.values()].some(f=>f.record===e))length=Math.max(.12,LOOP_STEPS-e.step);
-          resonance.start(resonanceNotes(e.id,e.row,config),e.row,{id:e.id,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:(e.id/13-.5)*.9});
-          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:e.x==null?null:e.x*geometry.width,fromLoop:true});
+          resonance.start(resonanceNotes(e.id,e.row,config,e.fret??0),e.row,{id:e.id,fret:e.fret??0,voice:config.voice,when,level:e.velocity*.8,duration:length*duration,attack:e.attack??.85,source:'loop',pan:isDrone(e.row)?0:(e.id/13-.5)*.9});
+          visualQueue.push({time:when,id:e.id,strength:.65,row:e.row,y:weftY(e.row,geometry),x:isDrone(e.row)?droneX(e.fret??0,geometry,config.scale):e.x==null?null:e.x*geometry.width,fromLoop:true});
         }else emit(e.id,e.velocity*.8,e.brightness,when,'loop',e.interval||0,geometry.top+e.y*(geometry.bottom-geometry.top));
       }
     }
@@ -212,7 +214,7 @@ canvas.addEventListener('pointerdown',e=>{
   const p=eventPoint(e),hit=intersection(p,geometry);if(fingers.size>=10)return;
   canvas.classList.add('pointer-playing');
   if(hit)startAudio();canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});
-  const f={...p,id:null,row:null,...hit,layer:warpLayer(p.y,geometry),velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
+  const f={...p,id:null,row:null,...hit,fret:hit&&isDrone(hit.row)?droneFret(p.x,geometry,config.scale):0,layer:warpLayer(p.y,geometry),velocity:.67,brightness:brightnessAt(p),started:audio.time,coupled:false};
   fingers.set(e.pointerId,f);
   if(f.id!==null)pluck(f.id,f.velocity,f.brightness,p.y);
   else if(f.row!==null)brushWeft(f.row,f.velocity,null,0,p.x);
@@ -239,14 +241,16 @@ canvas.addEventListener('pointermove',e=>{
       wefts.forEach((crossing,i)=>brushWeft(crossing.row,velocity,crossing.id,i*.022,crossing.x));
     }
     if(!hit){uncouple(f);Object.assign(f,p,{id:null,row:null,started:audio.time,coupled:false});continue;}
-    const changed=hit.id!==f.id||hit.row!==f.row;
+    const fret=isDrone(hit.row)?droneFret(p.x,geometry,config.scale,isDrone(f.row)?f.fret:null):0;
+    const changed=hit.id!==f.id||hit.row!==f.row||fret!==f.fret;
+    if(isDrone(hit.row)&&isDrone(f.row)&&fret!==f.fret&&!f.coupled)brushWeft(hit.row,velocity,null,0,p.x);
     if(changed&&f.coupled){
-      uncouple(f);
+      uncouple(f,isDrone(hit.row)&&isDrone(f.row)?.3:null);
       warps.forEach((crossing,i)=>pluck(crossing.id,velocity*.65,brightnessAt(p),crossing.y,audio.time+i*.008));
       wefts.forEach((crossing,i)=>{if(crossing.row!==hit.row)brushWeft(crossing.row,velocity*.65,crossing.id,i*.022,crossing.x);});
     }
     if(f.id===null&&f.row===null)f.started=audio.time;
-    Object.assign(f,p,hit,{velocity,layer,brightness:brightnessAt(p)});
+    Object.assign(f,p,hit,{velocity,layer,fret,brightness:brightnessAt(p)});
     if(changed&&f.coupled)couple(f);
   }
 });
@@ -359,7 +363,7 @@ function draw(ms){
   for(let i=pulses.length-1;i>=0;i--){pulses[i].age+=dt;if(pulses[i].age>2.4)pulses.splice(i,1);}
   const active=[...resonance.active].filter(h=>h.t<=audio.time&&audio.time<(h.cleanup??h.end));
   const strength=h=>Math.min(1,(audio.time-h.t)/h.attack)*.65*(audio.time>h.end?Math.exp(-5*(audio.time-h.end)/h.release):1);
-  for(const h of active){strings[h.id].energy=Math.max(strings[h.id].energy,strength(h));rows[h.row].energy=Math.max(rows[h.row].energy,strength(h));}
+  for(const h of active){if(!isDrone(h.row))strings[h.id].energy=Math.max(strings[h.id].energy,strength(h));rows[h.row].energy=Math.max(rows[h.row].energy,strength(h));}
   const line=(x1,y1,x2,y2)=>{ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
   // Two understated bridges anchor real continuous filaments, not a pad grid.
   ctx.strokeStyle='#96b4bd2b';ctx.lineWidth=1;
@@ -369,12 +373,12 @@ function draw(ms){
     if(isCalm)return 0;
     let v=0;
     for(const p of pulses){
-      if(axis==='v'?p.id!==index:p.row!==index)continue;
+      if(axis==='v'?(isDrone(p.row)||p.id!==index):p.row!==index)continue;
       const origin=axis==='v'?p.y:(p.x??warpX(p.id,g)),d=Math.abs(pos-origin),front=p.age*470;
       const packet=Math.exp(-(((d-front)/55)**2))*Math.exp(-p.age*1.4);
       v+=Math.sin(d*.085-p.age*47)*packet*p.strength*6;
     }
-    for(const h of active){if(axis==='v'?h.id!==index:h.row!==index)continue;
+    for(const h of active){if(axis==='v'?(isDrone(h.row)||h.id!==index):h.row!==index)continue;
       v+=Math.sin(pos*.07-frameTime*(axis==='v'?30:24)+h.serial)*strength(h)*1.6;
     }
     const limit=axis==='h'?Math.min(8,g.dy*.35):8;return clamp(v,-limit,limit);
@@ -401,7 +405,7 @@ function draw(ms){
     // Draw the weft as a double filament; the slight over/under deflection makes
     // the crossing legible without boxes, filled cells or button hit regions.
     for(let ply=0;ply<2;ply++){
-      ctx.strokeStyle=stringGradient('h',row,(ply?.16:.4)+e*(ply?.22:.5));ctx.lineWidth=ply?.55:.8+e*.65;
+      ctx.strokeStyle=stringGradient('h',row,(ply?.16:isDrone(row)?.65:.4)+e*(ply?.22:.35));ctx.lineWidth=isDrone(row)?(ply?.8:2+e*.8):(ply?.55:.8+e*.65);
       ctx.shadowColor=rowColor(row);ctx.shadowBlur=e*glow*7;
       ctx.beginPath();ctx.moveTo(start,y+ply*2);
       for(let x=start;x<=end;x+=3){const envelope=Math.sin(Math.PI*(x-start)/(end-start));const weave=Math.sin((x-g.left)/g.dx*Math.PI)*.6;
@@ -409,10 +413,19 @@ function draw(ms){
     }
     ctx.fillStyle=rowColor(row,e>.1?.95:.75);ctx.textAlign='left';ctx.font=`${Math.min(9,g.dy*.85)}px ui-monospace,monospace`;ctx.fillText(WEFTS[row].name,7,y+3);
     for(const x of [start,end]){ctx.strokeStyle=rowColor(row,.45);ctx.lineWidth=1;line(x,y-3,x,y+4);}
+    if(isDrone(row)){
+      const count=SCALES[config.scale].intervals.length+1,step=(end-start)/count;
+      ctx.textAlign='center';ctx.font='8px ui-monospace,monospace';
+      for(let fret=0;fret<count;fret++){
+        ctx.fillStyle=paletteColor(config.palette,fret/(count-1),80,.8);
+        ctx.fillText(fret===0?'ROOT':fret===count-1?'+8':String(fret+1),droneX(fret,g,config.scale),y+13);
+        if(fret){ctx.strokeStyle=paletteColor(config.palette,fret/(count-1),80,.65);ctx.lineWidth=1;line(start+fret*step,y-4,start+fret*step,y+4);}
+      }
+    }
   }
   // Contact knots: white = current fingers; a fine colored ring = recorded hand.
   for(const h of active){
-    const x=warpX(h.id,g),y=weftY(h.row,g),a=strength(h);
+    const x=isDrone(h.row)?droneX(h.fret??0,g,config.scale):warpX(h.id,g),y=weftY(h.row,g),a=strength(h);
     ctx.strokeStyle=h.source==='loop'?rowColor(h.row,.65):`rgba(224,255,245,${.3+a})`;
     ctx.lineWidth=h.source==='loop'?.8:1.2;ctx.beginPath();ctx.arc(x,y,4+a*3,0,Math.PI*2);ctx.stroke();
     ctx.fillStyle=rowColor(h.row,.4+a*.5);ctx.beginPath();ctx.arc(x,y,1.7,0,Math.PI*2);ctx.fill();

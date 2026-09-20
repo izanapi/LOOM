@@ -155,6 +155,24 @@ test('drone stays in the deep register and textures keep their release tails',as
  h.pointer('pointerup',2,null,2);h.advance(1);assert.ok(h.resonance.active.has(dust));assert.equal(dust.release,3.5);
  h.advance(8);assert.equal(h.resonance.active.size,0);h.pause();
 });
+test('drone root ignores vertical notes; frets ascend in scale and are recorded',async()=>{
+ const h=harness(),g=h.geometry,canvas=h.elements.get('canvas');
+ h.elements.get('root').value='2';h.elements.get('root').dispatch('change');
+ const point=fret=>({pointerId:41,clientX:loom.droneX(fret,g,h.config.scale),clientY:loom.weftY(11,g),timeStamp:performance.now(),pointerType:'touch'});
+ h.elements.get('loop').dispatch('click');canvas.dispatch('pointerdown',point(0));await h.flush();h.advance(.5);
+ const original=h.fingers.get(41).handle;assert.deepEqual(original.notes,[26,38]);
+ h.pointer('pointerdown',42,12,null);h.advance(.2);h.pointer('pointerup',42,12,null);
+ assert.equal(h.fingers.get(41).handle,original,'playing a warp does not retune the drone');
+ const plucks=h.loop.events.filter(e=>e.type==='pluck').length;
+ canvas.dispatch('pointermove',point(3));h.advance(.2);
+ assert.equal(h.fingers.get(41).handle.notes[0],31);assert.equal(original.release,.3);
+ canvas.dispatch('pointermove',point(7));h.advance(.2);
+ assert.equal(h.fingers.get(41).handle.notes[0],38);
+ assert.equal(h.loop.events.filter(e=>e.type==='pluck').length,plucks,'bass frets never pluck crossing warps');
+ assert.ok(h.loop.events.some(e=>e.type==='weave'&&e.row===11&&e.fret===7));
+ canvas.dispatch('pointerup',point(7));h.advance(5.5);assert.equal(h.loop.state,'playing');
+ assert.ok([...h.resonance.active].some(e=>e.source==='loop'&&e.row===11&&e.fret===7));h.pause();
+});
 
 test('lower-only harmonies remember the last vertical note and retune while held',async()=>{
   const h=harness();h.pointer('pointerdown',1,7,null);await h.flush();h.pointer('pointerup',1,7,null);

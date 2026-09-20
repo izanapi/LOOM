@@ -1,10 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCALES, noteName, frequency, LOOM_SCALES, PALETTES, paletteColor } from '../music.mjs';
-import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals } from '../loom.mjs';
+import { loomGeometry,warpX,weftY,intersection,crossedWarps,crossedWefts,degreeMidi,resonanceNotes,warpLayer,warpIntervals,droneFret,droneX } from '../loom.mjs';
+test('drone frets preserve root and quarter tones independently of warp ID',()=>{
+ const g=loomGeometry(390,500);
+ for(const scale of ['hijaz','rast','bayati','pentatonic']){
+  const c={root:3,scale,octave:1},n=SCALES[scale].intervals.length;
+  for(let f=0;f<=n;f++){
+   assert.equal(droneFret(droneX(f,g,scale),g,scale),f);
+   assert.deepEqual(resonanceNotes(0,11,c,f),resonanceNotes(13,11,c,f));
+   assert.equal(resonanceNotes(0,11,c,f)[0],27+(f===n?12:SCALES[scale].intervals[f]));
+  }
+ }
+});
 test('every string palette has a continuous multi-stop gradient',()=>{
  for(const name of Object.keys(PALETTES)){
-  assert.equal(PALETTES[name].hues.length,4);
+  assert.equal(PALETTES[name].colors.length,3);
   assert.notEqual(paletteColor(name,0),paletteColor(name,1));
  }
 });
@@ -24,7 +35,7 @@ test('quarter tones keep their pitch and readable labels',()=>{
 test('every crossing targets the same pitch and row on small and large surfaces',()=>{
  for(const [w,h] of [[320,250],[390,550],[900,660]]){
   const g=loomGeometry(w,h);
-  for(let id=0;id<14;id++)for(let row=0;row<12;row++)assert.deepEqual(intersection({x:warpX(id,g),y:weftY(row,g)},g),{id,row});
+  for(let id=0;id<14;id++)for(let row=0;row<12;row++)assert.deepEqual(intersection({x:warpX(id,g),y:weftY(row,g)},g),{id:row===11?null:id,row});
   assert.equal(intersection({x:0,y:0},g),null);
   assert.equal(crossedWarps({x:warpX(0,g),y:weftY(2,g)},{x:warpX(13,g),y:weftY(2,g)},g).length,13);
   assert.deepEqual(intersection({x:warpX(5,g)+g.dx*.55,y:weftY(2,g)},g,{id:5,row:2}),{id:5,row:2});

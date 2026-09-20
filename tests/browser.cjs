@@ -9,8 +9,8 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
   window.AudioContext=class extends Original{constructor(...args){super(...args);window.__audioContext=this;}};
  });
  await page.goto(process.argv[2]||'http://127.0.0.1:8071');await page.waitForTimeout(300);
- assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=sustain-6')));
- const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=sustain-6');return m.loomGeometry(390,500)});
+ assert.ok(await page.locator('script[type="module"]').getAttribute('src').then(s=>s.includes('?v=prism-7')));
+ const geometry=await page.evaluate(async()=>{const m=await import('./loom.mjs?v=prism-7');return m.loomGeometry(390,500)});
  assert.ok(geometry.left>180&&geometry.weftTop>250,'Strings form a mirrored L');
  fs.mkdirSync('artifacts',{recursive:true});
  await page.screenshot({path:'artifacts/loom-mobile.png'});
@@ -73,12 +73,26 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  await page.screenshot({path:'artifacts/loom-horizontal-arp.png'});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  await page.locator('[data-mode="pluck"]').click();
+ // The independent bass starts at KEY, then climbs through scale frets.
+ await page.keyboard.press('Escape');
+ const bassX=fret=>box.x+54+(fret+.5)*(right+10-54)/8;
+ await page.mouse.move(bassX(0),point(0,11).y);await page.mouse.down();await page.waitForTimeout(550);
+ assert.match(await page.locator('#noteReadout').textContent(),/^C1 × DRONE/);
+ await page.mouse.move(bassX(7),point(0,11).y,{steps:14});await page.waitForTimeout(250);
+ assert.match(await page.locator('#noteReadout').textContent(),/^C2 × DRONE/);
+ await page.screenshot({path:'artifacts/loom-drone-frets.png'});await page.mouse.up();
+ await page.keyboard.press('Escape');
  await page.locator('#settingsOpen').click();
  const backgrounds=new Set(),panelColors=new Set();
- for(const palette of ['desert','rose','copper','oasis','indigo','ember','aurora','neon']){
+ for(const palette of ['desert','rose','copper','oasis','indigo','ember','aurora','neon','salt','night']){
    await page.locator('#palette').selectOption(palette);
    backgrounds.add(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor));
    panelColors.add(await page.locator('#voice').evaluate(e=>getComputedStyle(e).backgroundColor));
+   if(['copper','oasis','neon'].includes(palette)){
+     await page.locator('#settingsClose').click();await page.waitForTimeout(100);
+     await page.screenshot({path:`artifacts/loom-palette-${palette}.png`});
+     await page.locator('#settingsOpen').click();
+   }
  }
  assert.equal(backgrounds.size,1);
  assert.equal(panelColors.size,1);assert.ok(backgrounds.has('rgb(9, 11, 24)'));

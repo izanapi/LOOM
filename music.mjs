@@ -1,4 +1,4 @@
-import { VOICES } from './voices.mjs?v=sustain-6';
+import { VOICES } from './voices.mjs?v=prism-7';
 // Pure musical rules shared by the instrument and its regression tests.
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 export const SCALES = {
@@ -42,19 +42,25 @@ export const noteName = midi => {
 // Older HANABI tunings remain readable, but LOOM's picker and dice favor its own catalog.
 export const LOOM_SCALES = Object.keys(SCALES).filter(k=>!['hirajoshi','ritusen','insen','kumoi','kumoijoshi','ryukyu'].includes(k));
 export const PALETTES = {
-  desert: {name:'Rub al Khali',hues:[322,352,386,412]},
-  rose: {name:'Wadi Rum',hues:[283,327,365,394]},
-  copper: {name:'Negev',hues:[348,372,397,421]},
-  oasis: {name:'Siwa',hues:[38,91,153,185]},
-  indigo: {name:'Zagros',hues:[213,263,309,350]},
-  ember: {name:'Sinai',hues:[307,351,375,399]},
-  aurora: {name:'Lut',hues:[169,208,274,323]},
-  neon: {name:'Neon',hues:[175,223,270,318]},
+  desert: {name:'Rub al Khali',colors:['#f45b97','#ff954f','#ffe589']},
+  rose: {name:'Wadi Rum',colors:['#ff735c','#db65c5','#7b91ff']},
+  copper: {name:'Petra',colors:['#ee7549','#ffd899','#62d9cf']},
+  oasis: {name:'Siwa',colors:['#39c7ae','#b0e980','#ffe18c']},
+  indigo: {name:'Zagros',colors:['#759cff','#ae75eb','#ffbddb']},
+  ember: {name:'Danakil',colors:['#ff5964','#ffae42','#def567']},
+  aurora: {name:'Pamukkale',colors:['#83e8f2','#d4eeff','#d2a5fb']},
+  neon: {name:'Hormuz',colors:['#5adcea','#be65f1','#ff849d']},
+  salt: {name:'Dasht-e Kavir',colors:['#f5e0a9','#83c8ff','#f4a1b6']},
+  night: {name:'Wadi Qamar',colors:['#7d86ff','#54d7cd','#f8de9a']},
 };
+// Blend explicit pigment colors rather than sweeping through unrelated hues.
+const PALETTE_RGB=Object.fromEntries(Object.entries(PALETTES).map(([key,p])=>[key,p.colors.map(hex=>[1,3,5].map(offset=>parseInt(hex.slice(offset,offset+2),16)))]));
 export function paletteColor(palette,position,light=70,alpha=1){
-  const hues=PALETTES[palette].hues,t=clamp(position,0,1)*(hues.length-1);
-  const i=Math.min(hues.length-2,Math.floor(t)),hue=hues[i]+(hues[i+1]-hues[i])*(t-i);
-  return `hsla(${hue},85%,${light}%,${alpha})`;
+  const colors=PALETTE_RGB[palette],t=clamp(position,0,1)*(colors.length-1);
+  const i=Math.min(colors.length-2,Math.floor(t)),mix=t-i;
+  const a=colors[i],b=colors[i+1],lift=clamp((light-70)/30,0,1);
+  const channels=a.map((v,k)=>{const value=v+(b[k]-v)*mix;return Math.round(value+(255-value)*lift);});
+  return `rgba(${channels.join(',')},${alpha})`;
 }
 
 export function angleForString(id) {
