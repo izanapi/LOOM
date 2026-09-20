@@ -1,8 +1,8 @@
-import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=prism-7';
-import { InstrumentAudio } from './audio.mjs?v=prism-7';
-import { VOICES } from './voices.mjs?v=prism-7';
-import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneFret, droneX } from './loom.mjs?v=prism-7';
-import { LoomResonance } from './resonance.mjs?v=prism-7';
+import { NOTES, SCALES, LOOM_SCALES, PALETTES, paletteColor, LOOP_STEPS, clamp, noteName, stepSeconds, loopStep, bpmFromTaps, randomPatch, accompanimentPhrase, recordingClick } from './music.mjs?v=root-8';
+import { InstrumentAudio } from './audio.mjs?v=root-8';
+import { VOICES } from './voices.mjs?v=root-8';
+import { WARP_COUNT, WEFTS, HOLD_SECONDS, loomGeometry, warpX, weftY, intersection, crossedWarps, crossedWefts, degreeMidi, resonanceNotes, wovenChord, isHarmony, warpLayer, warpIntervals, isDrone, droneFret, droneX } from './loom.mjs?v=root-8';
+import { LoomResonance } from './resonance.mjs?v=root-8';
 
 const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),audio=new InstrumentAudio();
@@ -414,12 +414,12 @@ function draw(ms){
     ctx.fillStyle=rowColor(row,e>.1?.95:.75);ctx.textAlign='left';ctx.font=`${Math.min(9,g.dy*.85)}px ui-monospace,monospace`;ctx.fillText(WEFTS[row].name,7,y+3);
     for(const x of [start,end]){ctx.strokeStyle=rowColor(row,.45);ctx.lineWidth=1;line(x,y-3,x,y+4);}
     if(isDrone(row)){
-      const count=SCALES[config.scale].intervals.length+1,step=(end-start)/count;
+      const count=SCALES[config.scale].intervals.length+1,step=(end-g.left)/(count-1);
       ctx.textAlign='center';ctx.font='8px ui-monospace,monospace';
       for(let fret=0;fret<count;fret++){
         ctx.fillStyle=paletteColor(config.palette,fret/(count-1),80,.8);
         ctx.fillText(fret===0?'ROOT':fret===count-1?'+8':String(fret+1),droneX(fret,g,config.scale),y+13);
-        if(fret){ctx.strokeStyle=paletteColor(config.palette,fret/(count-1),80,.65);ctx.lineWidth=1;line(start+fret*step,y-4,start+fret*step,y+4);}
+        if(fret){ctx.strokeStyle=paletteColor(config.palette,fret/(count-1),80,.65);ctx.lineWidth=1;line(g.left+(fret-1)*step,y-4,g.left+(fret-1)*step,y+4);}
       }
     }
   }

@@ -1,4 +1,4 @@
-import { SCALES, clamp } from './music.mjs?v=prism-7';
+import { SCALES, clamp } from './music.mjs?v=root-8';
 
 export const WARP_COUNT = 14;
 export const HOLD_SECONDS = .32;
@@ -82,13 +82,14 @@ export const isHarmony = row => row!==null && ['bloom','harm','fifth','third','o
 export const weftRelease = row => WEFTS[row].kind==='drone'?7:isHarmony(row)?.6:3.5;
 export const isDrone = row => WEFTS[row]?.kind==='drone';
 export function droneFret(x,g,scale,previous=null){
-  const count=SCALES[scale].intervals.length+1,step=(g.right+10-g.weftLeft)/count;
-  if(!Number.isFinite(x))return 0;
-  const position=(x-g.weftLeft)/step;
-  if(previous!==null&&position>previous-.12&&position<previous+1.12)return previous;
-  return clamp(Math.floor(position),0,count-1);
+  const count=SCALES[scale].intervals.length,step=(g.right+10-g.left)/count;
+  if(!Number.isFinite(x)||x<=g.left)return 0;
+  const position=(x-g.left)/step;
+  if(previous===0&&position<.12)return 0;
+  if(previous>0&&position>previous-1-.12&&position<previous+.12)return previous;
+  return clamp(Math.floor(position)+1,1,count);
 }
-export function droneX(fret,g,scale){const n=SCALES[scale].intervals.length;return g.weftLeft+(clamp(fret,0,n)+.5)*(g.right+10-g.weftLeft)/(n+1);}
+export function droneX(fret,g,scale){const n=SCALES[scale].intervals.length;return fret<=0?(g.weftLeft+g.left)/2:g.left+(clamp(fret,1,n)-.5)*(g.right+10-g.left)/n;}
 // Depth is measured along a string, never against the moving wave itself.
 export function warpLayer(y,g,previous=0){
   const depth=(y-g.top)/(g.bottom-g.top),h=.018;

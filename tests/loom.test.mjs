@@ -13,6 +13,15 @@ test('drone frets preserve root and quarter tones independently of warp ID',()=>
   }
  }
 });
+test('the entire un-crossed drone arm is root, even when returning from a high fret',()=>{
+ for(const [width,height] of [[320,250],[390,500],[900,660]]){
+  const g=loomGeometry(width,height);
+  for(let x=g.weftLeft;x<=g.left;x+=.5){
+   assert.equal(droneFret(x,g,'rast'),0);assert.equal(droneFret(x,g,'rast',7),0);
+  }
+  assert.equal(droneFret(g.right+10,g,'rast'),7);
+ }
+});
 test('every string palette has a continuous multi-stop gradient',()=>{
  for(const name of Object.keys(PALETTES)){
   assert.equal(PALETTES[name].colors.length,3);
