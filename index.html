@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#090b18">
   <meta name="description" content="An experimental crossed-string instrument. Pluck, hold and weave resonance into a two-bar loop.">
   <title>LOOM</title>
-  <link rel="stylesheet" href="style.css?v=color-11">
+  <link rel="stylesheet" href="style.css?v=drift-10">
 </head>
 <body>
 <main id="instrument">
@@ -18,10 +18,9 @@
     </div>
   </header>
   <section class="tuning" aria-label="Tuning">
-    <label class="key-select">KEY<select id="root" aria-label="Key"></select></label>
+    <label>KEY<select id="root" aria-label="Key"></select></label>
     <label class="scale-select">SCALE<select id="scale" aria-label="Scale"></select></label>
-    <label class="voice-select">VOICE<select id="voice" aria-label="Voice"></select></label>
-    <label class="color-select">COLOR<select id="palette" aria-label="String color"></select></label>
+    <label>VOICE<select id="voice" aria-label="Voice"></select></label>
   </section>
   <section class="stage" id="stage" aria-label="Strings">
     <div class="stage-note"><span id="keyReadout" class="sr-only"></span><span id="noteReadout"></span></div>
@@ -49,6 +48,7 @@
   <div class="sheet-header"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" aria-label="Close settings">CLOSE</button></div>
   <div class="settings-grid">
     <label>Octave<select id="octave"><option value="-1">−1</option><option value="0" selected>0</option><option value="1">＋1</option></select></label>
+    <label>String color<select id="palette"></select></label>
     <label>Decay <output id="decayValue">55</output><input id="decay" type="range" min="0" max="100" value="55"></label>
     <label>Glow <output id="glowValue">70</output><input id="glow" type="range" min="0" max="100" value="70"></label>
     <label>Groove<select id="swing"><option value="0">Straight</option><option value="0.16">Light swing</option><option value="0.3">Deep swing</option></select></label>

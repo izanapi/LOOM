@@ -90,19 +90,21 @@ const assert=require('node:assert/strict');const fs=require('node:fs');
  }
  await page.locator('#scale').selectOption('rast');
  await page.keyboard.press('Escape');
+ await page.locator('#settingsOpen').click();
  const backgrounds=new Set(),panelColors=new Set();
  for(const palette of ['desert','rose','copper','oasis','indigo','ember','aurora','neon','salt','night']){
    await page.locator('#palette').selectOption(palette);
    backgrounds.add(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor));
    panelColors.add(await page.locator('#voice').evaluate(e=>getComputedStyle(e).backgroundColor));
    if(['copper','oasis','neon'].includes(palette)){
-     await page.waitForTimeout(100);
+     await page.locator('#settingsClose').click();await page.waitForTimeout(100);
      await page.screenshot({path:`artifacts/loom-palette-${palette}.png`});
+     await page.locator('#settingsOpen').click();
    }
  }
  assert.equal(backgrounds.size,1);
  assert.equal(panelColors.size,1);assert.ok(backgrounds.has('rgb(9, 11, 24)'));
- await page.locator('#palette').selectOption('desert');
+ await page.locator('#palette').selectOption('desert');await page.locator('#settingsClose').click();
  for(const [width,height] of [[320,568],[390,664],[430,932],[844,390],[1280,900]]){
   await page.setViewportSize({width,height});await page.waitForTimeout(100);
   const metrics=await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth,h:innerHeight,sh:document.documentElement.scrollHeight,stage:document.querySelector('canvas').getBoundingClientRect().height}));
